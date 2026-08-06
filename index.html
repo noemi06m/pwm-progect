@@ -154,7 +154,14 @@
           resultDiv.className = 'success'; // assegna la classe css per poi formattare il testo 
           resultDiv.innerHTML = `<strong>Successo (${response.status}):</strong> ${data.message}<br><br>
                                  <pre>${JSON.stringify(data.user, null, 2)}</pre>`; //quello che stampa
-          form.reset(); // svuota
+          localStorage.setItem('userRole',role);
+          localStorage.setItem('userEmail',email);
+
+          if (role === 'ristoratore'){
+            window.location.href = 'ristoratore.html'
+          }else{
+            form.reset(); // svuota
+          }
         } else {
           resultDiv.className = 'error';
           resultDiv.innerHTML = `<strong>Errore (${response.status}):</strong> ${data.message}`;
