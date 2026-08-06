@@ -109,3 +109,30 @@ app.listen(PORT, () => {
 });
 
 app.use(express.static(__dirname));
+
+const path = require('path');
+
+app.get('/ristoratore.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'ristoratore.html'));
+});
+
+app.post('/api/ristorante/dettagli', (req, res) => {
+  const { email, role, ristorante } = req.body;
+
+  // Cerca l'utente registrato tramite email
+  const user = users.find(u => u.email === email);
+
+  if (!user) {
+    return res.status(404).json({ message: 'Utente non trovato' });
+  }
+
+  // Associa i dati del ristorante all'oggetto utente presente nell'array
+  user.dettagliRistorante = ristorante;
+
+  console.log('Utente aggiornato:', user);
+
+  return res.status(200).json({ 
+    message: 'Dettagli ristorante salvati con successo!', 
+    user 
+  });
+});
