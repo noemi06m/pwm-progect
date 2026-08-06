@@ -15,6 +15,35 @@ const USER_ROLES = {
     cliente: 'cliente',
     ristoratore: 'ristoratore'
 }
+/ accesso utente
+app.post('/api/login', async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    // 1. Cerca l'utente nell'array users
+    const user = users.find(u => u.email === email); 
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "Utente non trovato." });
+    }
+
+    // 2. Confronta la password (con await e negazione corretta)
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ success: false, message: "Password errata." });
+    }
+
+    // 3. Risposta con success: true e virgolette su 'ristoratore'
+    if (user.role === 'ristoratore') {
+      return res.json({ success: true, role: 'ristoratore', redirectUrl: '/ristoratore.html' });
+    } else {
+      return res.json({ success: true, role: 'cliente', redirectUrl: '/cliente.html' });
+    }
+  }
+  catch (error) {
+    console.error('Errore durante accesso:', error);
+    res.status(500).json({ success: false, message: 'Errore interno del server.' });
+  }
+});
 /**
  * Endpoint POST per la registrazione utenti
  */
