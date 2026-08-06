@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registrazione Utente</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 400px;
+      margin: 50px auto;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input[type="text"], input[type="email"], input[type="password"] {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    /* Stile personalizzato per le due variabili/opzioni */
+    .role-options {
+      display: flex;
+      gap: 15px;
+      margin-top: 5px;
+    }
+    .role-card {
+      flex: 1;
+      border: 2px solid #ccc;
+      border-radius: 6px;
+      padding: 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .role-card:hover {
+      border-color: #28a745;
+    }
+    .role-card input[type="radio"] {
+      margin-right: 5px;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background-color: #218838;
+    }
+    #result {
+      margin-top: 20px;
+      padding: 10px;
+      border-radius: 4px;
+      display: none;
+      word-break: break-word;
+    }
+    .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+  </style>
+</head>
+<body>
+
+  <h2>Registrazione</h2>
+
+  <form id="registerForm">
+    <div class="form-group">
+      <label for="username">Username:</label>
+      <input type="text" id="username" required placeholder="Inserisci username">
+    </div>
+
+    <div class="form-group">
+      <label for="email">Email:</label>
+      <input type="email" id="email" required placeholder="nome@esempio.com">
+    </div>
+
+    <div class="form-group">
+      <label for="password">Password:</label>
+      <input type="password" id="password" required placeholder="Almeno 6 caratteri">
+    </div>
+
+    <!-- Scelta tra le due variabili tramite Radio Button -->
+    <div class="form-group">
+      <label>Tipologia Utente:</label>
+      <div class="role-options">
+        <label class="role-card">
+          <input type="radio" name="role" value="cliente" checked> <!-- attributo di tipo radio che mi da la possibilità di fare la casella scelta-->
+          Cliente
+        </label>
+        <label class="role-card">
+          <input type="radio" name="role" value="ristoratore">
+          Ristoratore
+        </label>
+      </div>
+    </div>
+
+    <button type="submit">Registrati</button>
+  </form>
+
+  <div id="result"></div>
+<!-- ora la parte di cancellazione del'account-->
+  <div class="card card-danger">
+    <h2 style="color: #721c24;">Cancella Account</h2>
+    <form id="deleteForm">
+      <div class="form-group">
+        <label for="deleteEmail">Email dell'account da eliminare:</label>
+        <input type="email" id="deleteEmail" required placeholder="nome@esempio.com">
+      </div>
+
+      <button type="submit" class="btn-red">Elimina Account</button>
+    </form>
+    <div id="deleteResult" class="result"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById('registerForm');
+    const resultDiv = document.getElementById('result');
+
+    form.addEventListener('submit', async (e) => { // resta in attesa che l'utente clicchi il pulsante submit , mentre l'async definisce la funzione come asincrona non bloccando il programma
+      e.preventDefault(); //blocca il comportamento di default del browser
+
+      const username = document.getElementById('username').value; // prendi i valori scritti 
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+
+      // Estrazione del valore della variabile selezionata tra i due radio button
+      const role = document.querySelector('input[name="role"]:checked').value; //prende quello selezionato
+
+      try {
+        const response = await fetch('http://localhost:3000/api/register', { // invia l'indirizzo http a nodejs
+          method: 'POST', //stai inviando dati al server
+          headers: { 'Content-Type': 'application/json' }, // informa che sono in formato json
+          body: JSON.stringify({ username, email, password, role }) // converte l'oggetto javascript in una stringa json formattata
+        });
+
+        const data = await response.json(); // attende la risposta e la converte in oggetto javascript
+        resultDiv.style.display = 'block';
+
+        if (response.ok) {
+          resultDiv.className = 'success'; // assegna la classe css per poi formattare il testo 
+          resultDiv.innerHTML = `<strong>Successo (${response.status}):</strong> ${data.message}<br><br>
+                                 <pre>${JSON.stringify(data.user, null, 2)}</pre>`; //quello che stampa
+          form.reset(); // svuota
+        } else {
+          resultDiv.className = 'error';
+          resultDiv.innerHTML = `<strong>Errore (${response.status}):</strong> ${data.message}`;
+        }
+      } catch (error) {
+        resultDiv.style.display = 'block';
+        resultDiv.className = 'error';
+        resultDiv.innerHTML = '<strong>Errore di connessione:</strong> Verificare che il server sia attivo su http://localhost:3000';
+      }
+    });
+
+    const deleteForm = document.getElementById('deleteForm');
+    const deleteResult = document.getElementById('deleteResult');
+
+    deleteForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const email = document.getElementById('deleteEmail').value;
+
+      // Conferma di sicurezza opzionale lato client
+      if (!confirm(`Sei sicuro di voler eliminare l'account con email: ${email}?`)) {
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/delete-account', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+
+        const data = await response.json();
+        deleteResult.style.display = 'block';
+
+        if (response.ok) {
+          deleteResult.className = 'result success';
+          deleteResult.innerHTML = `<strong>Cancellato:</strong> ${data.message}`;
+          deleteForm.reset();
+        } else {
+          deleteResult.className = 'result error';
+          deleteResult.innerHTML = `<strong>Errore (${response.status}):</strong> ${data.message}`;
+        }
+      } catch (error) {
+        deleteResult.style.display = 'block';
+        deleteResult.className = 'result error';
+        deleteResult.innerHTML = '<strong>Errore di connessione.</strong>';
+      }
+    });
+  </script>
+
+</body>
+</html>
