@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Area Personale</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 500px; margin: 40px auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+    .card { background-color: #f9f9f9; padding: 15px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #007bff; }
+    .card.ristorante { border-left-color: #28a745; }
+    h2 { margin-top: 0; color: #333; }
+    p { margin: 8px 0; }
+    .label { font-weight: bold; }
+    button { width: 100%; padding: 10px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+  </style>
+</head>
+<body>
+
+  <h1>La tua Area Personale</h1>
+
+  <!-- Scheda sempre visibile per tutti -->
+  <div class="card">
+    <h2>Dati Profilo</h2>
+    <p><span class="label">Email:</span> <span id="uEmail">-</span></p>
+    <p><span class="label">Ruolo:</span> <span id="uRole">-</span></p>
+  </div>
+
+  <!-- Scheda mostrata SOLO se l'utente è un ristoratore -->
+  <div class="card ristorante" id="cardRistorante" style="display: none;">
+    <h2>Dati Ristorante</h2>
+    <p><span class="label">Nome Ristorante:</span> <span id="rNome">-</span></p>
+    <p><span class="label">Indirizzo:</span> <span id="rIndirizzo">-</span></p>
+    <p><span class="label">Telefono:</span> <span id="rTelefono">-</span></p>
+    <p><span class="label">Partita IVA:</span> <span id="rIva">-</span></p>
+  </div>
+
+  <button id="logoutBtn">Logout</button>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const email = localStorage.getItem('userEmail');
+
+      if (!email) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      try {
+        const response = await fetch(`http://localhost:3000/api/utente?email=${encodeURIComponent(email)}`);
+        const data = await response.json();
+
+        if (response.ok && data.user) {
+          // Mostra sempre i dati generali
+          document.getElementById('uEmail').innerText = data.user.email;
+          document.getElementById('uRole').innerText = data.user.role;
+
+          // Se l'utente è un RISTORATORE e ha salvato i dati del ristorante
+          if (data.user.role === 'ristoratore') {
+            const cardRist = document.getElementById('cardRistorante');
+            cardRist.style.display = 'block'; // Rende visibile il box
+
+            if (data.user.ristorante) {
+              document.getElementById('rNome').innerText = data.user.ristorante.nome;
+              document.getElementById('rIndirizzo').innerText = data.user.ristorante.indirizzo;
+              document.getElementById('rTelefono').innerText = data.user.ristorante.telefono;
+              document.getElementById('rIva').innerText = data.user.ristorante.partitaIva;
+            } else {
+              // Se è un ristoratore ma non ha ancora inserito i dati
+              cardRist.innerHTML = '<h2>Dati Ristorante</h2><p>Nessun ristorante ancora registrato. <a href="ristoratore.html">Inserisci ora</a></p>';
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Errore nel recupero dati:', err);
+      }
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      localStorage.clear();
+      window.location.href = 'index.html';
+    });
+  </script>
+</body>
+</html>
