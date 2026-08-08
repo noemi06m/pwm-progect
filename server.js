@@ -15,7 +15,7 @@ const USER_ROLES = {
     cliente: 'cliente',
     ristoratore: 'ristoratore'
 }
-/ accesso utente
+// accesso utente
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
   try {
