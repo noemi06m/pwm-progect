@@ -131,6 +131,9 @@
           resultDiv.className = 'success';
           resultDiv.style.backgroundColor = ''; // Ripristina lo stile CSS
           resultDiv.innerHTML = `<strong>Successo (${response.status}):</strong> ${data.message}`;
+          setTimeout(() => {
+            window.location.href = 'areaPersonale.html'; //reindirizzamento dopo 1,5 secondi
+            }, 1500);
         } else {
           resultDiv.className = 'error';
           resultDiv.style.backgroundColor = '';
