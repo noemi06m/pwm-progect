@@ -181,7 +181,7 @@
 
       const email = document.getElementById('deleteEmail').value;
 
-      // Conferma di sicurezza opzionale lato client
+      // Conferma di sicurezza lato client
       if (!confirm(`Sei sicuro di voler eliminare l'account con email: ${email}?`)) {
         return;
       }
@@ -200,6 +200,14 @@
           deleteResult.className = 'result success';
           deleteResult.innerHTML = `<strong>Cancellato:</strong> ${data.message}`;
           deleteForm.reset();
+
+          // Se l'utente sta cancellando l'account con cui è attualmente loggato
+          const loggedEmail = localStorage.getItem('userEmail');
+          if (loggedEmail === email) {
+            localStorage.removeItem('userEmail');
+            localStorage.removeItem('userRole');
+          }
+
         } else {
           deleteResult.className = 'result error';
           deleteResult.innerHTML = `<strong>Errore (${response.status}):</strong> ${data.message}`;
