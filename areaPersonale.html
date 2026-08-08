@@ -10,7 +10,28 @@
     h2 { margin-top: 0; color: #333; }
     p { margin: 8px 0; }
     .label { font-weight: bold; }
-    button { width: 100%; padding: 10px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+
+    /* Stile essenziale per il pulsante */
+.btn-outline-orange {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  background-color: transparent;
+  color: #ea580c;
+  border: 2px solid #ea580c;
+  border-radius: 6px;
+  text-align: center;
+  text-decoration: none;
+  box-sizing: border-box;
+  font-weight: bold;
+}
+
+/* Solo il cambio colore all'hover */
+.btn-outline-orange:hover {
+  background-color: #8e3be7;
+  border-color: #8e3be7;
+  color: #ffffff;
+}
   </style>
 </head>
 <body>
@@ -33,51 +54,51 @@
     <p><span class="label">Partita IVA:</span> <span id="rIva">-</span></p>
   </div>
 
-  <button id="logoutBtn">Logout</button>
+  <a href="iniziale.html" class="btn btn-outline-orange btn-lg rounded-3 fw-semibold">logout</a>
 
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
-      const email = localStorage.getItem('userEmail');
+  const email = localStorage.getItem('userEmail');
 
-      if (!email) {
-        window.location.href = 'index.html';
-        return;
-      }
+  if (!email) {
+    window.location.href = 'registrazione.html'; // O index.html
+    return;
+  }
 
-      try {
-        const response = await fetch(`http://localhost:3000/api/utente?email=${encodeURIComponent(email)}`);
-        const data = await response.json();
+  try {
+    const response = await fetch(`http://localhost:3000/api/utente?email=${encodeURIComponent(email)}`);
+    const data = await response.json();
 
-        if (response.ok && data.user) {
-          // Mostra sempre i dati generali
-          document.getElementById('uEmail').innerText = data.user.email;
-          document.getElementById('uRole').innerText = data.user.role;
+    if (response.ok && data.user) {
+      // Mostra i dati generali
+      document.getElementById('uEmail').innerText = data.user.email;
+      document.getElementById('uRole').innerText = data.user.role;
 
-          // Se l'utente è un RISTORATORE e ha salvato i dati del ristorante
-          if (data.user.role === 'ristoratore') {
-            const cardRist = document.getElementById('cardRistorante');
-            cardRist.style.display = 'block'; // Rende visibile il box
+      // Gestione Ristoratore
+      if (data.user.role === 'ristoratore') {
+        const cardRist = document.getElementById('cardRistorante');
+        cardRist.style.display = 'block';
 
-            if (data.user.ristorante) {
-              document.getElementById('rNome').innerText = data.user.ristorante.nome;
-              document.getElementById('rIndirizzo').innerText = data.user.ristorante.indirizzo;
-              document.getElementById('rTelefono').innerText = data.user.ristorante.telefono;
-              document.getElementById('rIva').innerText = data.user.ristorante.partitaIva;
-            } else {
-              // Se è un ristoratore ma non ha ancora inserito i dati
-              cardRist.innerHTML = '<h2>Dati Ristorante</h2><p>Nessun ristorante ancora registrato. <a href="ristoratore.html">Inserisci ora</a></p>';
-            }
-          }
+        if (data.user.ristorante) {
+          document.getElementById('rNome').innerText = data.user.ristorante.nome;
+          document.getElementById('rIndirizzo').innerText = data.user.ristorante.indirizzo;
+          document.getElementById('rTelefono').innerText = data.user.ristorante.telefono;
+          document.getElementById('rIva').innerText = data.user.ristorante.partitaIva;
+        } else {
+          cardRist.innerHTML = '<h2>Dati Ristorante</h2><p>Nessun ristorante registrato. <a href="ristoratore.html">Inserisci ora</a></p>';
         }
-      } catch (err) {
-        console.error('Errore nel recupero dati:', err);
       }
-    });
-
-    document.getElementById('logoutBtn').addEventListener('click', () => {
+    } else {
+      // Se il server risponde con errore (es. 404 Utente non trovato)
+      alert(data.message || 'Utente non trovato nel database. Effettua nuovamente la registrazione.');
       localStorage.clear();
-      window.location.href = 'index.html';
-    });
+      window.location.href = 'registrazione.html';
+    }
+  } catch (err) {
+    console.error('Errore di connessione:', err);
+    alert('Impossibile contattare il server.');
+  }
+});
   </script>
 </body>
 </html>
