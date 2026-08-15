@@ -54,10 +54,22 @@
     <p><span class="label">Partita IVA:</span> <span id="rIva">-</span></p>
   </div>
 
-  <a href="iniziale.html" class="btn btn-outline-orange btn-lg rounded-3 fw-semibold">logout</a>
+  <button id="btndinamico" class="btn btn-outline-orange btn-lg rounded-3 fw-semibold">vai alla tua area</button>
 
   <script>
-    document.addEventListener('DOMContentLoaded', async () => {
+
+    var ruoloUtente = '';
+    function gestioneAccesso() {
+    if (ruoloUtente === 'ristoratore'){
+      window.location.href = 'piatti.html';
+    }else{
+      window.location.href = 'cliente.html';
+    }
+  }
+
+  document.getElementById('btndinamico').addEventListener('click',gestioneAccesso);
+  
+  document.addEventListener('DOMContentLoaded', async () => {
   const email = localStorage.getItem('userEmail');
 
   if (!email) {
@@ -70,6 +82,8 @@
     const data = await response.json();
 
     if (response.ok && data.user) {
+
+      ruoloUtente = data.user.role;
       // Mostra i dati generali
       document.getElementById('uEmail').innerText = data.user.email;
       document.getElementById('uRole').innerText = data.user.role;
@@ -87,9 +101,10 @@
         } else {
           cardRist.innerHTML = '<h2>Dati Ristorante</h2><p>Nessun ristorante registrato. <a href="ristoratore.html">Inserisci ora</a></p>';
         }
+        
       }
     } else {
-      // Se il server risponde con errore (es. 404 Utente non trovato)
+      
       alert(data.message || 'Utente non trovato nel database. Effettua nuovamente la registrazione.');
       localStorage.clear();
       window.location.href = 'registrazione.html';
@@ -98,6 +113,7 @@
     console.error('Errore di connessione:', err);
     alert('Impossibile contattare il server.');
   }
+  
 });
   </script>
 </body>
