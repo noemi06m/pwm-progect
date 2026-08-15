@@ -19,9 +19,9 @@ app.post('/api/register', async (req, res) => {
     return res.status(400).json({ message: 'Tutti i campi sono obbligatori.' });
   }
 
-  let client;
+  
   try {
-    client = await MongoClient.connect(mongoURL);
+    const client = await MongoClient.connect(mongoURL);
     const coll = client.db('fastfood').collection('users');
 
     // Cerca nel db se la mail è già presente
@@ -64,9 +64,9 @@ app.post('/api/ristorante/dettagli', async (req, res) => {
     return res.status(400).json({ message: 'Dati mancanti.' });
   }
 
-  let client;
+  
   try {
-    client = await MongoClient.connect(mongoURL);
+    const client = await MongoClient.connect(mongoURL);
     const coll = client.db('fastfood').collection('users');
 
     const result = await coll.updateOne(
@@ -95,9 +95,9 @@ app.get('/api/utente', async (req, res) => {
     return res.status(400).json({ message: 'Email non specificata.' });
   }
 
-  let client;
+  
   try {
-    client = await MongoClient.connect(mongoURL);
+    const client = await MongoClient.connect(mongoURL);
     const coll = client.db('fastfood').collection('users');
 
     const user = await coll.findOne({ email: email });
@@ -117,14 +117,17 @@ app.get('/api/utente', async (req, res) => {
 
 // 4. LOGIN UTENTE
 app.post('/api/login', async (req, res) => {
-  const { email, password } = req.body;
-
-  let client;
+  
+  const nome = req.body.email;
+  const password = req.body.password;
+  
   try {
-    client = await MongoClient.connect(mongoURL);
+    const client = await MongoClient.connect(mongoURL);
     const coll = client.db('fastfood').collection('users');
 
-    const user = await coll.findOne({ email: email, password: password });
+    const filter = {email:nome, password:password};
+    const user = await coll.findOne(filter);
+
     await client.close();
 
     if (!user) {
@@ -136,7 +139,7 @@ app.post('/api/login', async (req, res) => {
     } else {
       return res.json({ success: true, role: 'cliente', redirectUrl: '/cliente.html' });
     }
-  } catch (error) {
+  }catch (error) {
     if (client) await client.close();
     console.error('Errore durante accesso:', error);
     res.status(500).json({ success: false, message: 'Errore interno del server.' });
@@ -174,6 +177,80 @@ app.delete('/api/delete-account', async (req, res) => {
     res.status(500).json({ message: 'Errore interno del server.' });
   }
 });
+
+//prende i dati dal db
+app.get('/api/meals', async (req, res) => {
+  
+  try {
+    const client = await MongoClient.connect(mongoURL);
+    const coll = client.db('fastfood').collection('meals');
+
+    //prende i dati dal db e li mette in una variabile (toarray converte tutto in un array javascript)
+    const meals = await coll.find({}).toArray();
+    await client.close();
+    
+    res.status(200).json(meals);
+  } catch (error) {
+      console.error("Errore nel recupero dei piatti:", error);
+      res.status(500).json({ message: "Errore interno al server durante la lettura dei piatti." });
+  } 
+});
+
+//permette al ristoratore di inserire un nuovo piatto
+app.post('/api/meals', async (req, res) => {
+  const { strMeal, strCategory, strMealThumb, ingredients, price, emailRistoratore } = req.body;
+
+  if (!strMeal || !price) {
+    return res.status(400).json({ message: 'Nome del piatto e prezzo sono obbligatori.' });
+  }
+
+  
+  try {
+    const client = await MongoClient.connect(mongoURL);
+    const coll = client.db('fastfood').collection('meals');
+
+    let listaIngredienti = [];
+
+
+    if (Array.isArray(ingredients)) {
+      listaIngredienti = ingredients;
+    } 
+
+    else if (typeof ingredients === 'string' && ingredients !== '') {
+      let parti = ingredients.split(',');
+      
+      for (let i = 0; i < parti.length; i++) {
+        let ingredientePulito = parti[i].trim();
+        if (ingredientePulito !== '') {
+          listaIngredienti.push(ingredientePulito);
+        }
+      }
+    }
+
+const newMeal = {
+  strMeal: strMeal,
+  strCategory: strCategory || 'Generico',
+  strMealThumb: strMealThumb || 'https://via.placeholder.com/400x200?text=Nessuna+Immagine',
+  ingredients: listaIngredienti,
+  price: parseFloat(price) || 0,
+  emailRistoratore: emailRistoratore || null,
+  createdAt: new Date()
+};
+
+    const result = await coll.insertOne(newMeal);
+
+    res.status(201).json({
+      message: 'Piatto inserito con successo!',
+      meal: { _id: result.insertedId, ...newMeal }
+    });
+  } catch (error) {
+    console.error("Errore nell'inserimento del piatto:", error);
+    res.status(500).json({ message: "Errore interno durante il salvataggio del piatto." });
+  } finally {
+    if (client) await client.close();
+  }
+});
+
 
 app.listen(port, () => {
   console.log(`Server attivo su http://localhost:${port}`);
