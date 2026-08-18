@@ -3,7 +3,7 @@ dns.setServers(["1.1.1.1", "1.0.0.1"]);
 const express = require("express");
 const cors = require("cors");
 const path = require("path"); // Aggiunto per gestire i percorsi
-const { MongoClient } = require("mongodb");
+const { MongoClient, ObjectId } = require("mongodb");
 
 const mongoURL = "mongodb+srv://noemimazzali06_db_user:gyhKKjjmYhE0A4c3@cluster0.fchb56k.mongodb.net/"; 
 
@@ -312,74 +312,51 @@ app.get("/api/meals", async (req, res) => {
     }
   }
 });
-// AGGIUNGI PIATTO AL MENU DEL RISTORATORE
+
+
+// AGGIUNGI PIATTO DAL CATALOGO AL MENU DEL RISTORATORE (COPIA COMPLETA)
 app.post("/api/menu/aggiungi", async (req, res) => {
-  const { email, idPiatto } = req.body;
+  const { email, idPiatto, price } = req.body;
 
   if (!email || !idPiatto) {
     return res.status(400).json({
       message: "Email e ID del piatto sono obbligatori."
     });
-
   }
+  let idQuery = new ObjectId(idPiatto);
+
   let client;
   try {
     client = await MongoClient.connect(mongoURL);
-    const coll = client.db("fastfood").collection("users");
+    const db = client.db("fastfood");
 
-    const user = await coll.findOne({email: email});
-    if (!user) {
-      return res.status(404).json({
-        message: "Ristoratore non trovato."
-      });
-    }
-    if (user.role !== "ristoratore") {
-      return res.status(403).json({message: "Solo un ristoratore può modificare il menu."});
+    const piattoOriginale = await db.collection("meals").findOne({_id: idQuery});
+
+    if (!piattoOriginale) {
+      return res.status(404).json({ message: "Piatto non trovato nel catalogo." });
     }
 
-    if (!user.ristorante) {
-      await coll.updateOne(
-        { email: email },
-        {
-          $set: {
-            ristorante: {
-              menu: []
-            }
-          }
-        }
-      );
+    // 2. Costruisci l'oggetto completo da salvare nel menu del ristoratore
+    const piattoCompleto = {
+      mealId: piattoOriginale._id.toString(),
+      strMeal: piattoOriginale.strMeal,
+      strCategory: piattoOriginale.strCategory,
+      strMealThumb: piattoOriginale.strMealThumb,
+      ingredients: piattoOriginale.ingredients || [],
+      price: price || "prezzo da inserire"
+    };
 
-    }
-    if (user.ristorante && !Array.isArray(user.ristorante.menu)) {
-      await coll.updateOne({ email: email },
-        {
-          $set: {
-            "ristorante.menu": []
-          }
-        }
-      );
-
-    }
-    const result = await coll.updateOne({ email: email },
-      {
-        $addToSet: {
-          "ristorante.menu": idPiatto
-        }
-      }
+    await db.collection("users").updateOne(
+      { email: email },
+      { $push: { "ristorante.menu": piattoCompleto } }
     );
 
-    if (result.modifiedCount === 0) {
-      return res.status(200).json({message: "Il piatto era già presente nel tuo menù."});
-    }
-
-    res.status(200).json({message: "Piatto aggiunto al menù con successo!"});
+    res.status(200).json({ message: "Piatto aggiunto al tuo menù con successo!" });
   } catch (error) {
-    console.error("ERRORE AGGIUNTA PIATTO:",error);
-    res.status(500).json({message: "Errore interno del server.",error: error.message});
+      console.error("ERRORE AGGIUNTA PIATTO:", error);
+      res.status(500).json({ message: "Errore interno del server." });
   } finally {
-    if (client) {
-      await client.close();
-    }
+      if (client) await client.close();
   }
 });
 
@@ -401,28 +378,23 @@ app.post("/api/meals/crea", async (req, res) => {
 
     const user = await db.collection("users").findOne({ email: email });
 
-    // 2. Inserisci il nuovo piatto nella collezione 'meals'
     const nuovoPiatto = {
+      mealId: new ObjectId().toString(),
       strMeal: strMeal,
       strCategory: strCategory,
       price: price,
       strMealThumb: strMealThumb,
-      ingredients: Array.isArray(ingredients) ? ingredients : [],
-      creatoDa: email
+      ingredients: Array.isArray(ingredients) ? ingredients : []
     };
 
-    const resultPiatto = await db.collection("meals").insertOne(nuovoPiatto);
-    //Recupera l'ID generato automaticamente da MongoDB per il nuovo piatto e lo converte in stringa.
-    const idPiattoCreato = resultPiatto.insertedId.toString();
-
+    
     await db.collection("users").updateOne(
       { email: email },
-      { $addToSet: { "ristorante.menu": idPiattoCreato } }
+      { $push: { "ristorante.menu": nuovoPiatto } }
     );
 
     res.status(201).json({
       message: "Piatto creato e aggiunto al menù con successo!",
-      idPiatto: idPiattoCreato
     });
 
   } catch (error) {
