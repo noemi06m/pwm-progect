@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Piatti</title>
+  <title>Gestione Menù - Piatti</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
   <style>
@@ -26,13 +26,21 @@
       background-color: #8e3be7;
       color: #ffffff;
     }
+    
   </style>
 </head>
 
 <body class="py-5">
   <div class="container">
-    <div class="row mb-3">
-      <div class="col d-flex justify-content-end">
+    <div class="row mb-3 align-items-center">
+      <div class="col-6">
+        <!-- Bottone per Aprire la Modal di Creazione Nuovo Piatto -->
+        <button class="btn btn-outline-light fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalNuovoPiatto">
+          + Crea Nuovo Piatto Personalizzato
+        </button>
+      </div>
+
+      <div class="col-6 d-flex justify-content-end">
         <a href="areaPersonale.html" class="btn btn-outline-light">Profilo utente</a>
       </div>
     </div>
@@ -40,17 +48,63 @@
     <div class="row mb-5">
       <div class="col text-center">
         <h1 class="fw-bold display-5 text-warning">Crea il tuo menu</h1>
-        <p class="text-white">Basta schiacciare su aggiungi per inserire il piatto selezionato nel tuo menu!</p>
+        <p class="text-white">Seleziona i piatti dal catalogo comune oppure creane uno tuo personalizzato!</p>
       </div>
     </div>
 
     <div class="row g-4" id="piattiContainer"></div>
   </div>
 
+  <!-- MODAL PER CREAZIONE NUOVO PIATTO PERSONALIZZATO -->
+  <div class="modal fade" id="modalNuovoPiatto" tabindex="-1" aria-labelledby="modalNuovoPiattoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-warning">
+          <h5 class="modal-title fw-bold text-dark" id="modalNuovoPiattoLabel">Aggiungi un Nuovo Piatto al Catalogo</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="formNuovoPiatto">
+            <div class="mb-3">
+              <label for="nomePiatto" class="form-label fw-semibold">Nome del Piatto *</label>
+              <input type="text" class="form-control" id="nomePiatto" placeholder="Es. Cheeseburger Speciale" required>
+            </div>
+
+            <div class="mb-3">
+              <label for="categoriaPiatto" class="form-label fw-semibold">Tipologia / Categoria *</label>
+              <input type="text" class="form-control" id="categoriaPiatto" placeholder="Es. Burger, Pizza, Dessert..." required>
+            </div>
+
+            <div class="mb-3">
+              <label for="prezzoPiatto" class="form-label fw-semibold">Prezzo (€) *</label>
+              <input type="number" step="0.01" min="0" class="form-control" id="prezzoPiatto" placeholder="Es. 8.50" required>
+            </div>
+
+            <div class="mb-3">
+              <label for="immaginePiatto" class="form-label fw-semibold">URL Foto Illustrativa</label>
+              <input type="url" class="form-control" id="immaginePiatto" placeholder="https://esempio.com/immagine.jpg">
+              <div class="form-text">Lascia vuoto se vuoi usare l'immagine predefinita.</div>
+            </div>
+
+            <div class="mb-3">
+              <label for="ingredientiPiatto" class="form-label fw-semibold">Ingredienti (separati da virgola) *</label>
+              <textarea class="form-control" id="ingredientiPiatto" rows="3" placeholder="Es. Carne di manzo, Formaggio Cheddar, Insalata, Pomodoro" required></textarea>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 pt-2">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+              <button type="submit" class="btn btn-outline-orange">Salva e Aggiungi al Menù</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
   <script>
-    // CARICA PIATTI 
+    // funzione che prende i dati dal db e li carica nella pagina
     async function caricaPiatti() {
       try {
         const response = await fetch("http://localhost:3000/api/meals");
@@ -66,10 +120,10 @@
       }
     }
 
-    // MOSTRA PIATTI
+    // gestisce i dati presi da db e li mette in formato di card, con tasto di aggiunta al proprio menù
     function mostraPiatti(lista) {
       const container = document.getElementById("piattiContainer");
-      container.innerHTML = ""; // Pulizia container
+      
 
       lista.forEach(piatto => {
         const titolo = piatto.strMeal || "Piatto senza nome";
@@ -78,12 +132,14 @@
         const prezzo = "Prezzo da inserire";
         let ingredientiTesto = "";
         
-        if (Array.isArray(piatto.ingredients) && piatto.ingredients.length > 0) { 
+        if (Array.isArray(piatto.ingredients) && piatto.ingredients.length > 0) {
+          //prende l' array di ingredienti piatto e li unisce in un'unica stringa di testo separati da una virgola e uno spazio 
           ingredientiTesto = piatto.ingredients.join(", ");
         } else {
           ingredientiTesto = "Ingredienti non specificati.";
         }
         
+        //costruzione della card che presenta il piatto
         const idPiatto = piatto._id;
         const cardHTML = `
           <div class="col-12 col-md-6 col-lg-4">
@@ -99,63 +155,92 @@
                 </p>
                 <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
                   <span class="fw-bold text-dark fs-5">${prezzo}</span>
-                  <button class="btn btn-outline-orange btn-sm rounded-3 fw-semibold px-3" onclick="aggiungiAzione('${idPiatto}')">Aggiungi</button>
+                  <button class="btn btn-outline-orange btn-sm rounded-3 fw-semibold px-3" onclick="aggiungiPiatto('${idPiatto}')">Aggiungi</button>
                 </div>
               </div>
             </div>
           </div>
         `;
+        //aggiunta alla pagina
         container.innerHTML += cardHTML;
       });
     }
 
-    // AGGIUNGI PIATTO AL MENU
-    async function aggiungiAzione(idPiatto) {
+    //funzione che aggiunge un piatto presistente al menu del ristoratore
+    async function aggiungiPiatto(idPiatto) {
       const email = localStorage.getItem("userEmail");
-
-      if (!email) {
-        alert("Nessun utente autenticato trovata in sessione. Effettua prima il login.");
-        window.location.href = "/accesso.html";
-        return;
-      }
-
-      if (!idPiatto) {
-        alert("Errore: ID del piatto non valido.");
-        return;
-      }
 
       try {
         const response = await fetch("http://localhost:3000/api/menu/aggiungi", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            email: email,
-            idPiatto: idPiatto
-          })
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email, idPiatto: idPiatto })
         });
 
-        const contentType = response.headers.get("content-type");
-        let data = {};
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || "Errore durante l'aggiunta.");
 
-        if (contentType && contentType.includes("application/json")) {
-          data = await response.json();
-        } else {
-          const rawText = await response.text();
-          throw new Error(`Risposta server non valida (${response.status}): ${rawText.substring(0, 80)}`);
-        }
-
-        if (!response.ok) {
-          throw new Error(data.message || "Errore durante l'aggiunta del piatto.");
-        }
-
-        alert(data.message || "Piatto aggiunto con successo al tuo menù!");
+        alert("Piatto aggiunto con successo al tuo menù!");
       } catch (error) {
-        console.error("Errore durante l'aggiunta:", error);
+        console.error("Errore aggiunta:", error);
         alert("Impossibile aggiungere il piatto: " + error.message);
       }
     }
+
+    //gestione aggiunta del nuovo piatto nel form
+    document.getElementById("formNuovoPiatto").addEventListener("submit", async function (event) {
+      event.preventDefault();
+
+      //prende l'email salvata nel browser con la quale il ristoratore si è autenticato
+      const email = localStorage.getItem("userEmail");
+
+      const strMeal = document.getElementById("nomePiatto").value.trim();
+      const strCategory = document.getElementById("categoriaPiatto").value.trim();
+      const price = parseFloat(document.getElementById("prezzoPiatto").value);
+      const strMealThumb = document.getElementById("immaginePiatto").value.trim() || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c";
+      
+      //i dati inizialmente vengono presi nel suo complesso
+      const ingredientiRaw = document.getElementById("ingredientiPiatto").value;
+      const ingredientiSeparati = ingredientiRaw.split(",");
+      const ingredients = [];
+
+      for (let i = 0; i < ingredientiSeparati.length; i++) {
+        const ingredientePulito = ingredientiSeparati[i].trim();
+        //controllo se effettivamente la stringa esiste
+        if (ingredientePulito.length > 0) {
+          ingredients.push(ingredientePulito);
+        }
+      }
+
+      //creazione dell'oggetto
+      const nuovoPiatto = {
+        email: email,
+        strMeal: strMeal,
+        strCategory: strCategory,
+        price: price,
+        strMealThumb: strMealThumb,
+        ingredients: ingredients
+      };
+
+      try {
+        const response = await fetch("http://localhost:3000/api/meals/crea", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(nuovoPiatto)
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || "Errore nella creazione del piatto.");
+
+        alert("Piatto creato e inserito nel tuo menù con successo!");
+
+        caricaPiatti();
+
+      } catch (error) {
+        console.error("Errore creazione piatto:", error);
+        alert("Errore: " + error.message);
+      }
+    });
 
     document.addEventListener("DOMContentLoaded", caricaPiatti);
   </script>
