@@ -16,26 +16,6 @@ app.use(cors());
 // Servizio file statici
 app.use(express.static(__dirname));
 
-// ROTTE ESPLICITE PER LE PAGINE HTML (Risolvono il Cannot GET)
-app.get("/accesso.html", (req, res) => {
-  res.sendFile(path.join(__dirname, "accesso.html"));
-});
-
-app.get("/piatti.html", (req, res) => {
-  res.sendFile(path.join(__dirname, "piatti.html"));
-});
-
-app.get("/areaPersonale.html", (req, res) => {
-  res.sendFile(path.join(__dirname, "areaPersonale.html"));
-});
-
-app.get("/cliente.html", (req, res) => {
-  res.sendFile(path.join(__dirname, "cliente.html"));
-});
-
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "accesso.html"));
-});
 //registrazione 
 app.post("/api/register", async (req, res) => {
 
@@ -403,6 +383,57 @@ app.post("/api/menu/aggiungi", async (req, res) => {
   }
 });
 
+
+// aggiunta di un nuovo piatto inserito dal ristoratore
+app.post("/api/meals/crea", async (req, res) => {
+  const { email, strMeal, strCategory, price, strMealThumb, ingredients } = req.body;
+
+  if (!email || !strMeal || !strCategory || price === undefined) {
+    return res.status(400).json({
+      message: "I campi Nome, Categoria, Prezzo ed Email sono obbligatori."
+    });
+  }
+
+  let client;
+  try {
+    client = await MongoClient.connect(mongoURL);
+    const db = client.db("fastfood");
+
+    const user = await db.collection("users").findOne({ email: email });
+
+    // 2. Inserisci il nuovo piatto nella collezione 'meals'
+    const nuovoPiatto = {
+      strMeal: strMeal,
+      strCategory: strCategory,
+      price: price,
+      strMealThumb: strMealThumb,
+      ingredients: Array.isArray(ingredients) ? ingredients : [],
+      creatoDa: email
+    };
+
+    const resultPiatto = await db.collection("meals").insertOne(nuovoPiatto);
+    //Recupera l'ID generato automaticamente da MongoDB per il nuovo piatto e lo converte in stringa.
+    const idPiattoCreato = resultPiatto.insertedId.toString();
+
+    await db.collection("users").updateOne(
+      { email: email },
+      { $addToSet: { "ristorante.menu": idPiattoCreato } }
+    );
+
+    res.status(201).json({
+      message: "Piatto creato e aggiunto al menù con successo!",
+      idPiatto: idPiattoCreato
+    });
+
+  } catch (error) {
+    console.error("Errore durante la creazione del piatto:", error);
+    res.status(500).json({ message: "Errore interno al server." });
+  } finally {
+    if (client) {
+      await client.close();
+    }
+  }
+});
 app.listen(port, () => {
 
   console.log(
