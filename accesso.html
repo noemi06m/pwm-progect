@@ -100,9 +100,9 @@
           localStorage.setItem("userEmail", result.email);
           
           if (result.role === 'ristoratore') {
-            window.location.href = '/piatti.html';
+            window.location.href = 'piatti.html';
           } else if (result.role === 'cliente') {
-            window.location.href = '/cliente.html';
+            window.location.href = 'elenco.html';
           } else {
             alert("Ruolo utente non riconosciuto.");
           }
