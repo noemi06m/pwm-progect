@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Elenco Ristoranti</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 20px;
+      background-color: #f4f6f8;
+    }
+
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+    }
+
+    h1 {
+      color: #333;
+      margin: 0;
+    }
+
+    .logout-btn {
+      padding: 8px 16px;
+      background-color: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .logout-btn:hover {
+      background-color: #c82333;
+    }
+
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background-color: #ffffff;
+      padding: 20px;
+      border-radius: 8px;
+      border-left: 5px solid #28a745;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .card h2 {
+      margin-top: 0;
+      color: #28a745;
+      font-size: 20px;
+      margin-bottom: 15px;
+    }
+
+    .card p {
+      margin: 8px 0;
+      color: #555;
+    }
+
+    .label {
+      font-weight: bold;
+      color: #333;
+    }
+
+    .empty-msg {
+      grid-column: 1 / -1;
+      text-align: center;
+      color: #777;
+      font-size: 18px;
+      padding: 40px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header-bar">
+    <h1>Ristoranti Disponibili</h1>
+    <button class="logout-btn" id="logoutBtn">Logout</button>
+  </div>
+
+  <div class="grid-container" id="listaRistoranti">
+    <!-- Le schede dei ristoranti verranno inserite qui dinamicamente -->
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+    const email = localStorage.getItem('userEmail');
+
+    // Controllo se l'utente è loggato
+    if (!email) {
+      window.location.href = 'index.html';
+      return;
+    }
+
+    const container = document.getElementById('listaRistoranti');
+
+    try {
+      // Richiesta al server per ottenere la lista di tutti i ristoranti
+      const response = await fetch('http://localhost:3000/api/ristoranti');
+      const ristoranti = await response.json();
+
+      if (response.ok && ristoranti.length > 0) {
+        container.innerHTML = ''; // Pulisce il contenitore
+
+        ristoranti.forEach(r => {
+          const card = document.createElement('div');
+          card.className = 'card';
+
+          // QUI CREIAMO L'HTML DELLA SCHEDA + IL BOTTONE CHE PASSA L'ID
+          card.innerHTML = `
+            <h2>${r.nome || 'Nome non disponibile'}</h2>
+            <p><span class="label">Indirizzo:</span> ${r.indirizzo || '-'}</p>
+            <p><span class="label">Telefono:</span> ${r.telefono || '-'}</p>
+            <p><span class="label">Partita IVA:</span> ${r.partitaIva || '-'}</p>
+            <a href="menuCliente.html?id=${r._id}" class="btn-menu">Vedi Menù</a>
+          `;
+
+          container.appendChild(card);
+        });
+      } else {
+        container.innerHTML = '<p class="empty-msg">Nessun ristorante al momento disponibile.</p>';
+      }
+    } catch (err) {
+      console.error('Errore nel caricamento dei ristoranti:', err);
+      container.innerHTML = '<p class="empty-msg" style="color: red;">Impossibile caricare l\'elenco dei ristoranti.</p>';
+    }
+  });
+
+  // Gestione Logout
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    localStorage.clear();
+    window.location.href = 'index.html';
+  });
+  </script>
+</body>
+</html>
