@@ -158,9 +158,11 @@
           localStorage.setItem('userEmail',email);
 
           if (role === 'ristoratore'){
-            window.location.href = 'ristoratore.html'
+            window.location.href = 'ristoratore.html';
+          }else if (role === 'cliente'){
+            window.location.href = 'elenco.html';
           }else{
-            form.reset(); // svuota
+            alert('ruolo non riconosciuto');
           }
         } else {
           resultDiv.className = 'error';
