@@ -413,3 +413,75 @@ app.listen(port, () => {
   );
 
 });
+app.get("/api/ristoranti", async (req, res) => {
+  let client;
+  try {
+    client = await MongoClient.connect(mongoURL);
+    const coll = client.db("fastfood").collection("users");
+
+    // Cerca gli utenti con ruolo "ristoratore" che hanno compilato i dati del ristorante (almeno il nome)
+    const ristoratori = await coll.find(
+      { 
+        role: "ristoratore", 
+        "ristorante.nome": { $exists: true, $ne: "" } 
+      },
+      { 
+        projection: { 
+          "ristorante.nome": 1, 
+          "ristorante.indirizzo": 1, 
+          "ristorante.telefono": 1, 
+          "ristorante.partitaIva": 1 
+        } 
+      }
+    ).toArray();
+
+    // Estrae solamente l'oggetto ristorante per ogni ristoratore
+    const listaRistoranti = ristoratori.map(u => u.ristorante);
+
+    res.status(200).json(listaRistoranti);
+  } catch (error) {
+    console.error("Errore nel recupero dei ristoranti:", error);
+    res.status(500).json({ message: "Errore interno al server durante il recupero dei ristoranti." });
+  } finally {
+    if (client) {
+      await client.close();
+    }
+  }
+});
+
+// RECUPERA DETTAGLI E MENU DI UN SINGOLO RISTORANTE PER ID
+app.get("/api/ristorante/:id", async (req, res) => {
+  const { id } = req.params;
+
+  let client;
+  try {
+    client = await MongoClient.connect(mongoURL);
+    const coll = client.db("fastfood").collection("users");
+
+    // Cerca l'utente ristoratore tramite l'ObjectId del suo documento
+    const user = await coll.findOne(
+      { _id: new ObjectId(id), role: "ristoratore" },
+      { projection: { "password": 0 } } // Esclude la password per sicurezza
+    );
+
+    if (!user || !user.ristorante) {
+      return res.status(404).json({ message: "Ristorante non trovato." });
+    }
+
+    res.status(200).json({
+      nome: user.ristorante.nome || "Ristorante senza nome",
+      indirizzo: user.ristorante.indirizzo || "-",
+      telefono: user.ristorante.telefono || "-",
+      partitaIva: user.ristorante.partitaIva || "-",
+      menu: user.ristorante.menu || []
+    });
+
+  } catch (error) {
+    console.error("Errore nel recupero del ristorante:", error);
+    res.status(500).json({ message: "Errore interno del server." });
+  } finally {
+    if (client) {
+      await client.close();
+    }
+  }
+});
