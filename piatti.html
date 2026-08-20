@@ -33,16 +33,18 @@
 <body class="py-5">
   <div class="container">
     <div class="row mb-3 align-items-center">
-      <div class="col-6">
-        <button class="btn btn-outline-light fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalNuovoPiatto">
+      <div class="col-6 d-flex align-items-center">
+        <button class="btn btn-outline-light fw-bold shadow-sm me-2" data-bs-toggle="modal" data-bs-target="#modalNuovoPiatto">
           + Crea Nuovo Piatto Personalizzato
         </button>
+        <a href="menu.html" class="btn btn-outline-light fw-bold shadow-sm">
+          Vai al tuo menù
+        </a>
       </div>
 
       <div class="col-6 d-flex justify-content-end">
-        <a href="areaPersonale.html" class="btn btn-outline-light">Profilo utente</a>
+        <a href="areaPersonale.html" class="btn btn-outline-light fw-bold shadow-sm">Profilo utente</a>
       </div>
-    </div>
 
     <div class="row mb-5">
       <div class="col text-center">
@@ -99,16 +101,19 @@
     </div>
   </div>
 
+
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
   <script>
-    // funzione che prende i dati dal db e li carica nella pagina
+    // funzione che carica i dati dei piatti nella pagina
     async function caricaPiatti() {
       try {
         const response = await fetch("http://localhost:3000/api/meals");
         if (!response.ok) {
           throw new Error("Errore nel recupero dei piatti dal server.");
         }
+        //converte i dati da json a oggetto javascript
         const piattiArray = await response.json();
         mostraPiatti(piattiArray);
 
@@ -122,7 +127,7 @@
     function mostraPiatti(lista) {
       const container = document.getElementById("piattiContainer");
       
-
+      //scorre tutti gli oggetti piatto presenti nel array di piatti presi con la funzione caricaPiatti
       lista.forEach(piatto => {
         const titolo = piatto.strMeal || "Piatto senza nome";
         const categoria = piatto.strCategory || "Generico";
@@ -130,7 +135,7 @@
         const prezzo = "Prezzo da inserire";
         let ingredientiTesto = "";
         
-        if (Array.isArray(piatto.ingredients) && piatto.ingredients.length > 0) {
+        if (piatto.ingredients.length > 0) {
           //prende l' array di ingredienti piatto e li unisce in un'unica stringa di testo separati da una virgola e uno spazio 
           ingredientiTesto = piatto.ingredients.join(", ");
         } else {
@@ -164,14 +169,16 @@
       });
     }
 
-    //funzione che aggiunge un piatto presistente al menu del ristoratore
+    //funzione che aggiunge un piatto esistente al menu del ristoratore
     async function aggiungiPiatto(idPiatto) {
+      //recupero email ristoratore salvata nella memoria locale del browser
       const email = localStorage.getItem("userEmail");
 
       try {
         const response = await fetch("http://localhost:3000/api/menu/aggiungi", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          //riconverte email e idpiatto in stringa json
           body: JSON.stringify({ email: email, idPiatto: idPiatto })
         });
 
@@ -185,13 +192,13 @@
       }
     }
 
-    //gestione aggiunta del nuovo piatto nel form
+    //gestione aggiunta di un nuovo piatto nel form
     document.getElementById("formNuovoPiatto").addEventListener("submit", async function (event) {
       event.preventDefault();
 
-      //prende l'email salvata nel browser con la quale il ristoratore si è autenticato
       const email = localStorage.getItem("userEmail");
-
+      
+      //trim serve per rimuovere spazi bianchi
       const strMeal = document.getElementById("nomePiatto").value.trim();
       const strCategory = document.getElementById("categoriaPiatto").value.trim();
       const price = parseFloat(document.getElementById("prezzoPiatto").value);
@@ -199,6 +206,7 @@
       
       //i dati inizialmente vengono presi nel suo complesso
       const ingredientiRaw = document.getElementById("ingredientiPiatto").value;
+      //divide la strina in un elemento dell'array ogni volta che incontra una virgola nella lettura
       const ingredientiSeparati = ingredientiRaw.split(",");
       const ingredients = [];
 
@@ -240,6 +248,8 @@
       }
     });
 
+    //mostra i piatti al ristoratore appena viene caricata la pagina
+    
     document.addEventListener("DOMContentLoaded", caricaPiatti);
   </script>
 </body>
