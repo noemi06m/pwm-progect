@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Menù Ristoratore</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    </head>
+    <style>
+        body {
+            background: linear-gradient(135deg, #d97706 0%, #ea580c 50%, #f97316 100%);
+            min-height: 100vh;
+        }
+        .btn-custom {
+            background-color: transparent;
+            color: #ea580c;
+            border: 2px solid #ea580c;
+            transition: all 0.3s ease;
+        }
+
+        .btn-custom:hover {
+            background-color: #8e3be7;
+            color: #ffffff;
+            border-color: #8e3be7;
+        }
+    </style>
+
+    <body class="d-flex align-items-center justify-content-center min-vh-100 py-4">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-12 col-lg-10">
+                    <div class="card bg-white text-dark border-0 shadow-lg p-3 p-md-4 rounded-4">
+                        <div class="card-body">
+                            <h2 class="text-center fw-bold mb-4" style="color: #ea580c;">Il tuo menù</h2>
+
+                            <form id="menu-form" onsubmit="salvaModifiche(event)">
+                                <div class="table-responsive">
+                                    <table class="table table-bordered align-middle">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th style="width: 80px;">Foto</th>
+                                                <th style="width: 140px;">Tipologia</th>
+                                                <th style="width: 180px;">Nome Piatto</th>
+                                                <th style="min-width: 250px;">Ingredienti Disponibili</th>
+                                                <th style="width: 110px;">Prezzo (€)</th>
+                                                <th style="width: 50px;">Azione</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="menu-body">
+                                            <!-- I piatti verranno inseriti qui -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mt-4">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 fw-bold" onclick="creaRigaPiatto()">
+                                        + Aggiungi Piatto
+                                    </button>
+                                    <button type="submit" class="btn btn-custom btn-lg fw-bold rounded-3 fs-6 px-4">
+                                        Salva Modifiche
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const tbody = document.getElementById("menu-body");
+            const userEmail = localStorage.getItem("userEmail");
+
+            //carica il menu del ristoratore
+            async function caricaMenu() {
+
+                try {
+                    const response = await fetch(`http://localhost:3000/api/menu?email=${encodeURIComponent(userEmail)}`);
+                    if (!response.ok) throw new Error("Errore nel recupero del menù");
+
+                    const menuUtente = await response.json();
+                    tbody.innerHTML = "";
+
+                    if (!menuUtente || menuUtente.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">Il tuo menù è vuoto. Clicca su "+ Aggiungi Piatto" per iniziare.</td></tr>`;
+                        return;
+                    }
+
+                    menuUtente.forEach(piatto => {
+                        creaRigaPiatto(piatto);
+                    });
+                } catch (error) {
+                    console.error("Errore:", error);
+                    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">Errore durante il caricamento del menù.</td></tr>`;
+                }
+            }
+            //funzione che genera il codice html per l'aggiunta di un ingrediente
+            function generaHTMLIngredienti(ingredients = []) {
+                let html = '<div class="d-flex flex-wrap gap-2 mb-2 container-checkbox">';
+                
+                ingredients.forEach(ing => {
+                    html += `
+                        <div class="form-check bg-white px-2 py-1 rounded border shadow-sm d-flex align-items-center">
+                            <input class="form-check-input ingredient-checkbox me-1" type="checkbox" value="${ing}" checked>
+                            <label class="form-check-label small me-1">${ing}</label>
+                            <button type="button" class="btn-close ms-1" style="font-size: 0.55rem;" onclick="this.closest('.form-check').remove()" title="Rimuovi ingrediente"></button>
+                        </div>
+                    `;
+                });
+
+                html += '</div>';
+                html += `
+                    <div class="input-group input-group-sm mt-1">
+                        <input type="text" class="form-control nuovo-ingrediente-input" placeholder="Nuovo ingrediente...">
+                        <button class="btn btn-outline-secondary" type="button" onclick="aggiungiIngredienteAPiatto(this)">+</button>
+                    </div>
+                `;
+
+                return html;
+            }
+
+            //funzione che quando viene schiacciato il + aggiunge l'ingrediente
+            function aggiungiIngredienteAPiatto(btn) {
+                //seleziona il quadratino posto prima dell'ingrediente
+                const input = btn.previousElementSibling;
+                //estrae il testo dell'ingrediente
+                const nomeIngrediente = input.value.trim();
+
+
+                // Trova la cella <td> padre e seleziona il contenitore delle checkbox degli ingredienti
+                const container = btn.closest('td').querySelector('.container-checkbox');
+                const nuovoElemento = document.createElement('div');
+                //definisce la struttura html del nuovo ingrediente aggiunto
+                nuovoElemento.className = 'form-check bg-white px-2 py-1 rounded border shadow-sm d-flex align-items-center';
+                nuovoElemento.innerHTML = `
+                    <input class="form-check-input ingredient-checkbox me-1" type="checkbox" value="${nomeIngrediente}" checked>
+                    <label class="form-check-label small me-1">${nomeIngrediente}</label>
+                    <button type="button" class="btn-close ms-1" style="font-size: 0.55rem;" onclick="this.closest('.form-check').remove()"></button>
+                `;
+                //aggiunta ingrediente al contenitore padre
+                container.appendChild(nuovoElemento);
+                input.value = '';
+            }
+
+            //aggiunge un nuovo piatto al menu
+            function creaRigaPiatto(piatto = {}) {
+                const tr = document.createElement("tr");
+                    
+                // prende l'id del piatto
+                const mealId = piatto.mealId;
+                tr.dataset.id = mealId; // Assegna SEMPRE l'ID alla riga DOM
+
+                const strMealThumb = piatto.strMealThumb || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c';
+                const strCategory = piatto.strCategory || 'antipasto';
+                const strMeal = piatto.strMeal || '';
+                const ingredients = piatto.ingredients || [];
+                const price = piatto.price || '0.00';
+
+                //crea la riga che conterrà tutti i dati del nuovo piatto
+                tr.innerHTML = `
+                    <td class="text-center">
+                        <img src="${strMealThumb}" class="img-preview rounded mb-1 d-block mx-auto" style="width:60px; height:60px; object-fit:cover;" alt="Foto">
+                        <input type="file" accept="image/*" class="form-control form-control-sm" style="font-size: 0.65rem;" onchange="aggiornaAnteprima(this)">
+                    </td>
+                    <td>
+                        <select class="form-select form-select-sm select-tipologia">
+                            <option value="antipasto" ${strCategory.toLowerCase() === 'antipasto' ? 'selected' : ''}>Antipasto</option>
+                            <option value="primo" ${strCategory.toLowerCase() === 'primo' ? 'selected' : ''}>Primo</option>
+                            <option value="secondo" ${strCategory.toLowerCase() === 'secondo' ? 'selected' : ''}>Secondo</option>
+                            <option value="contorno" ${strCategory.toLowerCase() === 'contorno' ? 'selected' : ''}>Contorno</option>
+                            <option value="pizza" ${strCategory.toLowerCase() === 'pizza' ? 'selected' : ''}>Pizza</option>
+                            <option value="dolce" ${strCategory.toLowerCase() === 'dolce' ? 'selected' : ''}>Dolce</option>
+                            <option value="bevanda" ${strCategory.toLowerCase() === 'bevanda' ? 'selected' : ''}>Bevanda</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="text" class="form-control form-control-sm fw-bold input-nome" value="${strMeal}" placeholder="Nome piatto" required>
+                    </td>
+                    <td>
+                        ${generaHTMLIngredienti(ingredients)}
+                    </td>
+                    <td>
+                        <input type="number" step="0.50" min="0" class="form-control form-control-sm text-end input-prezzo" value="${price}" required>
+                    </td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-outline-danger btn-sm border-0" onclick="rimuoviRiga(this)">✕</button>
+                    </td>
+                `;
+
+                tbody.appendChild(tr);
+            }
+            //funzione che rimuove la riga della tabella per cancellare il piatto
+            async function rimuoviRiga(btn) {
+                //anche in questo caso cerca l'elemento tr più vicino al pulsante cliccato
+                const tr = btn.closest("tr");
+                //estrae l'id del piatto salvato nell'attributo data-id
+                const id = tr.dataset.id;
+
+                if (id) {
+                    if (!confirm("Sei sicuro di voler eliminare questo piatto?")) return;
+                    try {
+                        const res = await fetch(`http://localhost:3000/api/menu/${id}?email=${encodeURIComponent(userEmail)}`, { 
+                            method: 'DELETE' 
+                        });
+                        if (!res.ok) throw new Error("Errore durante l'eliminazione");
+                    } catch (err) {
+                        alert("Errore nell'eliminazione: " + err.message);
+                        return;
+                    }
+                }
+                tr.remove();
+            }
+
+            //salva i dati modificati e ti reindirizza alla pagina dei piatti
+            async function salvaModifiche(e) {
+                e.preventDefault();
+                const righe = tbody.querySelectorAll("tr");
+                const listaPiatti = [];
+
+                // Nel frontend, dentro salvaModifiche(e)
+                
+               righe.forEach(riga => {
+                const id = riga.dataset.id; // Usa l'ID già assegnato al tr
+                const category = riga.querySelector(".select-tipologia").value;
+                const meal = riga.querySelector(".input-nome").value;
+                const priceVal = parseFloat(riga.querySelector(".input-prezzo").value);
+                const thumb = riga.querySelector(".img-preview").src;
+
+                const ingredientiSelezionati = [];
+                const checkboxes = riga.querySelectorAll(".ingredient-checkbox:checked");
+
+                //scorre le checkbox spuntate e inserisce gli ingredienti spuntati
+                for (let i = 0; i<checkboxes.length; i++) {
+                    const cb = checkboxes[i];
+                    ingredientiSelezionati.push(cb.value);
+                }
+
+                listaPiatti.push({
+                    mealId: id,
+                    strMeal: meal,
+                    strCategory: category,
+                    price: priceVal,
+                    strMealThumb: thumb,
+                    ingredients: ingredientiSelezionati
+                });
+            });
+                try {
+                    const response = await fetch(`http://localhost:3000/api/menu`, {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            email: userEmail,
+                            menu: listaPiatti
+                        })
+                    });
+
+                    if (!response.ok) throw new Error("Errore durante il salvataggio");
+
+                    alert("Menù aggiornato con successo!");
+                    caricaMenu();
+                    window.location.href = "piatti.html";
+                } catch (error) {
+                    console.error("Errore nel salvataggio:", error);
+                    alert("Impossibile salvare le modifiche su MongoDB.");
+                }
+            }
+
+            caricaMenu();
+        </script>   
+    </body>
+</html>
