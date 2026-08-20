@@ -170,28 +170,34 @@
     }
 
     //funzione che aggiunge un piatto esistente al menu del ristoratore
-    async function aggiungiPiatto(idPiatto) {
-      //recupero email ristoratore salvata nella memoria locale del browser
-      const email = localStorage.getItem("userEmail");
+    // Funzione che aggiunge un piatto esistente dal catalogo al menu del ristoratore
+async function aggiungiPiatto(idPiatto) {
+  // 1. Recupera l'email dal LocalStorage
+  const userEmail = localStorage.getItem("userEmail");
 
-      try {
-        const response = await fetch("http://localhost:3000/api/menu/aggiungi", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          //riconverte email e idpiatto in stringa json
-          body: JSON.stringify({ email: email, idPiatto: idPiatto })
-        });
+  // 2. Verifica che l'email sia presente
+  if (!userEmail) {
+    alert("Utente non autenticato. Effettua nuovamente il login.");
+    return;
+  }
 
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || "Errore durante l'aggiunta.");
+  try {
+    const response = await fetch("http://localhost:3000/api/menu/aggiungi", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      // 3. Invia l'email corretta al backend
+      body: JSON.stringify({ email: userEmail, idPiatto: idPiatto })
+    });
 
-        alert("Piatto aggiunto con successo al tuo menù!");
-      } catch (error) {
-        console.error("Errore aggiunta:", error);
-        alert("Impossibile aggiungere il piatto: " + error.message);
-      }
-    }
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || "Errore durante l'aggiunta.");
 
+    alert("Piatto aggiunto con successo al tuo menù!");
+  } catch (error) {
+    console.error("Errore aggiunta:", error);
+    alert("Impossibile aggiungere il piatto: " + error.message);
+  }
+}
     //gestione aggiunta di un nuovo piatto nel form
     document.getElementById("formNuovoPiatto").addEventListener("submit", async function (event) {
       event.preventDefault();
