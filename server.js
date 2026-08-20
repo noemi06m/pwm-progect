@@ -406,20 +406,116 @@ app.post("/api/meals/crea", async (req, res) => {
     }
   }
 });
-app.listen(port, () => {
 
-  console.log(
-    `Server attivo su http://localhost:${port}`
-  );
+// prende il menu del ristoratore per controllare
+app.get("/api/menu", async (req, res) => {
+  const { email } = req.query;
 
+  if (!email) {
+    return res.status(400).json({ message: "L'email dell'utente è obbligatoria." });
+  }
+
+  let client;
+  try {
+    client = await MongoClient.connect(mongoURL);
+    const coll = client.db("fastfood").collection("users");
+
+    const user = await coll.findOne({ email: email });
+
+    if (!user) {
+      return res.status(404).json({ message: "Utente non trovato." });
+    }
+    //assegna l'array di menù e nel caso non esiste gli attribuisce un array vuoto
+    const menu = user.ristorante?.menu || [];
+    res.status(200).json(menu);
+
+  } catch (error) {
+    console.error("Errore nel recupero del menù:", error);
+    res.status(500).json({ message: "Errore interno al server." });
+  } finally {
+    if (client) await client.close();
+  }
 });
+
+
+//aggiorna e salva l'intero menù del ristoratore nel caso di modifiche
+app.put("/api/menu", async (req, res) => {
+  const { email, menu } = req.body;
+
+  //controllo sull'email e sull'array
+  if (!email) {
+    return res.status(400).json({ message: "Email obbligatoria." });
+  }
+
+  let client;
+  try {
+    client = await MongoClient.connect(mongoURL);
+    const coll = client.db("fastfood").collection("users");
+
+    // salva direttamente l'array ricevuto dal frontend
+    const result = await coll.updateOne(
+      { email: email },
+      { $set: { "ristorante.menu": menu } }
+    );
+
+    res.status(200).json({ message: "Menù aggiornato con successo!", menu: menu });
+
+  } catch (error) {
+    console.error("Errore durante l'aggiornamento del menù:", error);
+    res.status(500).json({ message: "Errore interno al server." });
+  } finally {
+    if (client) await client.close();
+  }
+});
+
+//elimina un piatto dal menù
+app.delete("/api/menu/:mealId", async (req, res) => {
+    const mealId = req.params;
+    const email = req.query;
+
+    if (!email || !mealId) {
+        return res.status(400).json({
+            message: "Email e piatto sono obbligatori."
+        });
+    }
+
+    let client;
+
+    try {
+        client = await MongoClient.connect(mongoURL);
+        const coll = client.db("fastfood").collection("users");
+
+        const result = await coll.updateOne(
+            { email: email },
+            //serve per rimuovere elementi da un array in base a una condizione
+            { $pull: {"ristorante.menu": { mealId: mealId }}
+            }
+        );
+
+        if (result.modifiedCount === 0) {
+            return res.status(404).json({ message: "Piatto non trovato nel menù.", mealId: mealId});
+        }
+
+        res.status(200).json({ message: "Piatto eliminato con successo."});
+
+    } catch (error) {
+        console.error("Errore DELETE:", error);
+        res.status(500).json({message: "Errore interno del server."});
+    } finally {
+        if (client) {
+            await client.close();
+        }
+    }
+});
+
+// prende i ristoranti da presentare ai clienti
 app.get("/api/ristoranti", async (req, res) => {
   let client;
   try {
     client = await MongoClient.connect(mongoURL);
     const coll = client.db("fastfood").collection("users");
 
-    // Cerca gli utenti con ruolo "ristoratore" che hanno compilato i dati del ristorante (almeno il nome)
+    // Cerca gli utenti con ruolo "ristoratore" che hanno compilato i dati del ristorante
     const ristoratori = await coll.find(
       { 
         role: "ristoratore", 
@@ -427,6 +523,7 @@ app.get("/api/ristoranti", async (req, res) => {
       },
       { 
         projection: { 
+          _id: 0,
           "ristorante.nome": 1, 
           "ristorante.indirizzo": 1, 
           "ristorante.telefono": 1, 
@@ -435,8 +532,13 @@ app.get("/api/ristoranti", async (req, res) => {
       }
     ).toArray();
 
-    // Estrae solamente l'oggetto ristorante per ogni ristoratore
-    const listaRistoranti = ristoratori.map(u => u.ristorante);
+    // Costruisce l'array popolandolo senza usare .map()
+    const listaRistoranti = [];
+    for (const u of ristoratori) {
+      if (u.ristorante) {
+        listaRistoranti.push(u.ristorante);
+      }
+    }
 
     res.status(200).json(listaRistoranti);
   } catch (error) {
@@ -484,4 +586,13 @@ app.get("/api/ristorante/:id", async (req, res) => {
       await client.close();
     }
   }
+});
+
+
+app.listen(port, () => {
+
+  console.log(
+    `Server attivo su http://localhost:${port}`
+  );
+
 });
