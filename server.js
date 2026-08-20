@@ -468,14 +468,14 @@ app.put("/api/menu", async (req, res) => {
   }
 });
 
-//elimina un piatto dal menù
+// Elimina un piatto dal menù
 app.delete("/api/menu/:mealId", async (req, res) => {
-    const mealId = req.params;
-    const email = req.query;
+    const { mealId } = req.params;
+    const { email } = req.query;
 
     if (!email || !mealId) {
         return res.status(400).json({
-            message: "Email e piatto sono obbligatori."
+            message: "Email e mealId del piatto sono obbligatori."
         });
     }
 
@@ -487,20 +487,24 @@ app.delete("/api/menu/:mealId", async (req, res) => {
 
         const result = await coll.updateOne(
             { email: email },
-            //serve per rimuovere elementi da un array in base a una condizione
-            { $pull: {"ristorante.menu": { mealId: mealId }}
+            { 
+              $pull: { 
+                "ristorante.menu": { 
+                  $or: [{ mealId: mealId }, { _id: mealId }] 
+                } 
+              } 
             }
         );
 
         if (result.modifiedCount === 0) {
-            return res.status(404).json({ message: "Piatto non trovato nel menù.", mealId: mealId});
+            return res.status(404).json({ message: "Piatto non trovato nel menù.", mealId });
         }
 
-        res.status(200).json({ message: "Piatto eliminato con successo."});
+        res.status(200).json({ message: "Piatto eliminato con successo." });
 
     } catch (error) {
         console.error("Errore DELETE:", error);
-        res.status(500).json({message: "Errore interno del server."});
+        res.status(500).json({ message: "Errore interno del server." });
     } finally {
         if (client) {
             await client.close();
