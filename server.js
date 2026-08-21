@@ -468,7 +468,7 @@ app.put("/api/menu", async (req, res) => {
   }
 });
 
-// Elimina un piatto dal menù
+//elimina un piatto dal menù
 app.delete("/api/menu/:mealId", async (req, res) => {
     const { mealId } = req.params;
     const { email } = req.query;
@@ -589,6 +589,41 @@ app.get("/api/ristorante/:id", async (req, res) => {
     if (client) {
       await client.close();
     }
+  }
+});
+
+//ricerca piatto per ingrediente, nome e tipologia
+// Ricerca su un'unica barra per ingrediente, nome e tipologia
+app.get("/api/meals/search", async (req, res) => {
+  const { q } = req.query;
+
+  // Se la query è vuota, restituisce un array vuoto
+  if (!q || !q.trim()) {
+    return res.status(200).json([]);
+  }
+
+  const queryPulita = q.trim();
+  let client;
+
+  try {
+    client = await MongoClient.connect(mongoURL);
+    const coll = client.db("fastfood").collection("meals");
+
+    // $or restituisce i piatti che soddisfano ALMENO UNO dei tre criteri
+    const piattiFiltrati = await coll.find({
+      $or: [
+        { ingredients: { $regex: queryPulita, $options: "i" } },
+        { strMeal: { $regex: queryPulita, $options: "i" } },
+        { strCategory: { $regex: queryPulita, $options: "i" } }
+      ]
+    }).toArray();
+
+    res.status(200).json(piattiFiltrati);
+  } catch (error) {
+    console.error("Errore durante la ricerca:", error);
+    res.status(500).json({ message: "Errore interno al server." });
+  } finally {
+    if (client) await client.close();
   }
 });
 
