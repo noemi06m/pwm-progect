@@ -53,6 +53,15 @@
       </div>
     </div>
 
+    <div class="row mb-4 justify-content-center">
+      <div class="col-md-6">
+        <div class="input-group">
+          <input type="text" id="inputCercaIngrediente" class="form-control" placeholder="Cerca per ingrediente (es. Pomodoro, Formaggio...)">
+          <button class="btn btn-warning fw-bold" onclick="ricerca()">Cerca</button>
+        </div>
+      </div>
+    </div>
+
     <div class="row g-4" id="piattiContainer"></div>
   </div>
 
@@ -170,34 +179,34 @@
     }
 
     //funzione che aggiunge un piatto esistente al menu del ristoratore
-    // Funzione che aggiunge un piatto esistente dal catalogo al menu del ristoratore
-async function aggiungiPiatto(idPiatto) {
-  // 1. Recupera l'email dal LocalStorage
-  const userEmail = localStorage.getItem("userEmail");
+    async function aggiungiPiatto(idPiatto) {
+      // 1. Recupera l'email dal LocalStorage
+      const userEmail = localStorage.getItem("userEmail");
 
-  // 2. Verifica che l'email sia presente
-  if (!userEmail) {
-    alert("Utente non autenticato. Effettua nuovamente il login.");
-    return;
-  }
+      // 2. Verifica che l'email sia presente
+      if (!userEmail) {
+        alert("Utente non autenticato. Effettua nuovamente il login.");
+        return;
+      }
 
-  try {
-    const response = await fetch("http://localhost:3000/api/menu/aggiungi", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      // 3. Invia l'email corretta al backend
-      body: JSON.stringify({ email: userEmail, idPiatto: idPiatto })
-    });
+      try {
+        const response = await fetch("http://localhost:3000/api/menu/aggiungi", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          // 3. Invia l'email corretta al backend
+          body: JSON.stringify({ email: userEmail, idPiatto: idPiatto })
+        });
 
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.message || "Errore durante l'aggiunta.");
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || "Errore durante l'aggiunta.");
 
-    alert("Piatto aggiunto con successo al tuo menù!");
-  } catch (error) {
-    console.error("Errore aggiunta:", error);
-    alert("Impossibile aggiungere il piatto: " + error.message);
-  }
-}
+        alert("Piatto aggiunto con successo al tuo menù!");
+      } catch (error) {
+        console.error("Errore aggiunta:", error);
+        alert("Impossibile aggiungere il piatto: " + error.message);
+      }
+    }
+
     //gestione aggiunta di un nuovo piatto nel form
     document.getElementById("formNuovoPiatto").addEventListener("submit", async function (event) {
       event.preventDefault();
@@ -254,6 +263,42 @@ async function aggiungiPiatto(idPiatto) {
       }
     });
 
+    //funzione di ricerca per nome, ingrediente e tipologia di piatto
+    async function ricerca() {
+      const query = document.getElementById("inputCercaIngrediente").value.trim();
+
+      // Se la barra è vuota, ricarica la lista completa dei piatti
+      if (!query) {
+        caricaPiatti();
+        return;
+      }
+
+      try {
+        // Invia il parametro unico 'q'
+        const response = await fetch(`http://localhost:3000/api/meals/search?q=${encodeURIComponent(query)}`);
+        if (!response.ok) {
+          throw new Error("Errore nella ricerca.");
+        }
+
+        const piattiFiltrati = await response.json();
+        
+        // Svuota il container prima di mostrare i risultati
+        document.getElementById("piattiContainer").innerHTML = "";
+
+        if (piattiFiltrati.length === 0) {
+          document.getElementById("piattiContainer").innerHTML = `
+            <div class="col-12 text-center text-white">
+              <p class="fs-5">Nessun piatto trovato per "${query}".</p>
+            </div>`;
+          return;
+        }
+
+        mostraPiatti(piattiFiltrati);
+      } catch (error) {
+        console.error("Errore ricerca:", error);
+        alert("Impossibile completare la ricerca.");
+      }
+    }
     //mostra i piatti al ristoratore appena viene caricata la pagina
     
     document.addEventListener("DOMContentLoaded", caricaPiatti);
