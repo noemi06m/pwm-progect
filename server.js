@@ -519,7 +519,6 @@ app.get("/api/ristoranti", async (req, res) => {
     client = await MongoClient.connect(mongoURL);
     const coll = client.db("fastfood").collection("users");
 
-    // Cerca gli utenti con ruolo "ristoratore" che hanno compilato i dati del ristorante
     const ristoratori = await coll.find(
       { 
         role: "ristoratore", 
@@ -527,22 +526,19 @@ app.get("/api/ristoranti", async (req, res) => {
       },
       { 
         projection: { 
-          _id: 0,
-          "ristorante.nome": 1, 
-          "ristorante.indirizzo": 1, 
-          "ristorante.telefono": 1, 
-          "ristorante.partitaIva": 1 
+          _id: 1,
+          "ristorante": 1 
         } 
       }
     ).toArray();
 
-    // Costruisce l'array popolandolo senza usare .map()
-    const listaRistoranti = [];
-    for (const u of ristoratori) {
-      if (u.ristorante) {
-        listaRistoranti.push(u.ristorante);
-      }
-    }
+    const listaRistoranti = ristoratori.map(u => ({
+      _id: u._id, // Mantiene l'ID del documento MongoDB
+      nome: u.ristorante?.nome,
+      indirizzo: u.ristorante?.indirizzo,
+      telefono: u.ristorante?.telefono,
+      partitaIva: u.ristorante?.partitaIva
+    }));
 
     res.status(200).json(listaRistoranti);
   } catch (error) {
@@ -555,19 +551,22 @@ app.get("/api/ristoranti", async (req, res) => {
   }
 });
 
-// RECUPERA DETTAGLI E MENU DI UN SINGOLO RISTORANTE PER ID
 app.get("/api/ristorante/:id", async (req, res) => {
   const { id } = req.params;
+
+  // VERIFICA SE L'ID È VALIDO PRIMA DI INTERROGARE MONGO
+  if (!id || !ObjectId.isValid(id)) {
+    return res.status(400).json({ message: "ID ristorante non valido." });
+  }
 
   let client;
   try {
     client = await MongoClient.connect(mongoURL);
     const coll = client.db("fastfood").collection("users");
 
-    // Cerca l'utente ristoratore tramite l'ObjectId del suo documento
     const user = await coll.findOne(
       { _id: new ObjectId(id), role: "ristoratore" },
-      { projection: { "password": 0 } } // Esclude la password per sicurezza
+      { projection: { "password": 0 } }
     );
 
     if (!user || !user.ristorante) {
