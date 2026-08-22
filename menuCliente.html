@@ -34,7 +34,6 @@
 <body class="py-5">
   <div class="container">
 
-    <!-- Navigazione superiore -->
     <div class="row mb-3">
       <div class="col d-flex justify-content-between align-items-center">
         <a href="elenco.html" class="btn btn-outline-light">&larr; Torna ai Ristoranti</a>
@@ -42,14 +41,12 @@
       </div>
     </div>
 
-    <!-- Banner Dettagli Ristorante -->
     <div class="info-header" id="ristoranteHeader">
       <h1 class="fw-bold display-5 text-warning mb-2" id="rNome">Caricamento...</h1>
       <p class="mb-1" id="rIndirizzo"></p>
       <p class="mb-0" id="rTelefono"></p>
     </div>
 
-    <!-- Sezione Elenco Piatti -->
     <div class="row g-4" id="piattiContainer"></div>
 
   </div>
@@ -70,7 +67,7 @@
 
       // 2. Recupera le informazioni ed il menu del ristorante selezionato dal server
       try {
-        const response = await fetch(`http://localhost:3000/api/ristorante/${ristoranteId}`);
+      const response = await fetch(`http://localhost:3000/api/ristorante/${encodeURIComponent(ristoranteId)}`);
         if (!response.ok) {
           throw new Error("Impossibile recuperare i dati del ristorante.");
         }
