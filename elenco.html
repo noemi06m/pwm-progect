@@ -4,141 +4,153 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Elenco Ristoranti</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     body {
-      font-family: Arial, sans-serif;
-      max-width: 800px;
-      margin: 40px auto;
-      padding: 0 20px;
-      background-color: #f4f6f8;
+      background-color: #ea580c;
     }
-
-    .header-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 30px;
+    .badge-indirizzo {
+      background-color: #8e3be7;
     }
-
-    h1 {
-      color: #333;
-      margin: 0;
+    .btn-outline-orange {
+      background-color: transparent;
+      color: #ea580c;
+      border: 2px solid #ea580c;
     }
-
-    .logout-btn {
-      padding: 8px 16px;
-      background-color: #dc3545;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-
-    .logout-btn:hover {
-      background-color: #c82333;
-    }
-
-    .grid-container {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 20px;
-    }
-
-    .card {
-      background-color: #ffffff;
-      padding: 20px;
-      border-radius: 8px;
-      border-left: 5px solid #28a745;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-
-    .card h2 {
-      margin-top: 0;
-      color: #28a745;
-      font-size: 20px;
-      margin-bottom: 15px;
-    }
-
-    .card p {
-      margin: 8px 0;
-      color: #555;
-    }
-
-    .label {
-      font-weight: bold;
-      color: #333;
-    }
-
-    .empty-msg {
-      grid-column: 1 / -1;
-      text-align: center;
-      color: #777;
-      font-size: 18px;
-      padding: 40px;
+    .btn-outline-orange:hover {
+      background-color: #8e3be7;
+      color: #ffffff;
     }
   </style>
 </head>
-<body>
+<body class="py-5">
 
-  <div class="header-bar">
-    <h1>Ristoranti Disponibili</h1>
-    <button class="logout-btn" id="logoutBtn">Logout</button>
+  <div class="container">
+    <!-- Header con Logout -->
+    <div class="row mb-3 align-items-center">
+      <div class="col text-end">
+        <button class="btn btn-outline-light fw-bold shadow-sm" id="logoutBtn">Logout</button>
+      </div>
+    </div>
+
+    <!-- Titolo -->
+    <div class="row mb-4">
+      <div class="col text-center">
+        <h1 class="fw-bold display-5 text-warning">Ristoranti Disponibili</h1>
+        <p class="text-white">Cerca un ristorante per nome o per località!</p>
+      </div>
+    </div>
+
+    <!-- Barra di Ricerca Unica (Bootstrap) -->
+    <div class="row mb-5 justify-content-center">
+      <div class="col-md-6">
+        <div class="input-group">
+          <input type="text" id="inputCercaRistorante" class="form-control" placeholder="Cerca per nome o luogo (es. Da Mario, Milano...)">
+          <button class="btn btn-warning fw-bold" onclick="ricercaRistorante()">Cerca</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Griglia dei Ristoranti -->
+    <div class="row g-4" id="listaRistoranti"></div>
   </div>
 
-  <div class="grid-container" id="listaRistoranti">
-    <!-- Le schede dei ristoranti verranno inserite qui dinamicamente -->
-  </div>
-
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', async () => {
-    const email = localStorage.getItem('userEmail');
+      // Si attiva automaticante all'apertura della pagina
+      document.addEventListener('DOMContentLoaded', async () => {
+        const email = localStorage.getItem('userEmail');
+        if (!email) {
+          window.location.href = 'index.html';
+          return;
+        }
+        // Carica subito la lista iniziale dei ristoranti
+        caricaRistoranti();
+      });
 
-    // Controllo se l'utente è loggato
-    if (!email) {
-      window.location.href = 'index.html';
-      return;
-    }
-
-    const container = document.getElementById('listaRistoranti');
-
-    try {
-      // Richiesta al server per ottenere la lista di tutti i ristoranti
-      const response = await fetch('http://localhost:3000/api/ristoranti');
-      const ristoranti = await response.json();
-
-      if (response.ok && ristoranti.length > 0) {
-        container.innerHTML = ''; // Pulisce il contenitore
-
-        ristoranti.forEach(r => {
-          const card = document.createElement('div');
-          card.className = 'card';
-
-          // QUI CREIAMO L'HTML DELLA SCHEDA + IL BOTTONE CHE PASSA L'ID
-          card.innerHTML = `
-            <h2>${r.nome || 'Nome non disponibile'}</h2>
-            <p><span class="label">Indirizzo:</span> ${r.indirizzo || '-'}</p>
-            <p><span class="label">Telefono:</span> ${r.telefono || '-'}</p>
-            <p><span class="label">Partita IVA:</span> ${r.partitaIva || '-'}</p>
-            <a href="menuCliente.html?id=${r._id}" class="btn-menu">Vedi Menù</a>
-          `;
-
-          container.appendChild(card);
-        });
-      } else {
-        container.innerHTML = '<p class="empty-msg">Nessun ristorante al momento disponibile.</p>';
+      async function caricaRistoranti() {
+        try {
+          const response = await fetch('http://localhost:3000/api/ristoranti');
+          const ristoranti = await response.json();
+          disegnaRistoranti(ristoranti);
+        } catch (err) {
+          console.error('Errore nel caricamento:', err);
+          document.getElementById('listaRistoranti').innerHTML = 
+            '<div class="col-12 text-center text-white"><p class="fs-5">Impossibile caricare i ristoranti.</p></div>';
+        }
       }
-    } catch (err) {
-      console.error('Errore nel caricamento dei ristoranti:', err);
-      container.innerHTML = '<p class="empty-msg" style="color: red;">Impossibile caricare l\'elenco dei ristoranti.</p>';
-    }
-  });
 
-  // Gestione Logout
-  document.getElementById('logoutBtn').addEventListener('click', () => {
-    localStorage.clear();
-    window.location.href = 'index.html';
-  });
+      async function ricercaRistorante() {
+        const q = document.getElementById("inputCercaRistorante").value.trim();
+
+        if (!q) {
+          caricaRistoranti();
+          return;
+        }
+
+        try {
+          const response = await fetch(`http://localhost:3000/api/ristoranti/search?q=${encodeURIComponent(q)}`);
+          if (!response.ok) throw new Error("Errore durante la ricerca.");
+
+          const ristoranti = await response.json();
+          disegnaRistoranti(ristoranti);
+        } catch (err) {
+          console.error('Errore ricerca:', err);
+          alert("Errore durante la ricerca.");
+        }
+      }
+
+      function disegnaRistoranti(ristoranti) {
+        const container = document.getElementById('listaRistoranti');
+        container.innerHTML = '';
+
+        if (!ristoranti || ristoranti.length === 0) {
+          container.innerHTML = `
+            <div class="col-12 text-center text-white">
+              <p class="fs-5">Nessun ristorante trovato.</p>
+            </div>`;
+          return;
+        }
+
+        ristoranti.forEach(u => {
+          // Estrae l'oggetto nidificato ristorante
+          const r = u.ristorante || {};
+          const nome = r.nome || 'Nome non disponibile';
+          const indirizzo = r.indirizzo || 'Indirizzo non specificato';
+          const telefono = r.telefono || '-';
+          const piva = r.partitaIva || '-';
+
+          const cardHTML = `
+            <div class="col-12 col-md-6 col-lg-4">
+              <div class="card h-100 shadow-sm border-0 rounded-4 overflow-hidden">
+                <div class="card-body d-flex flex-column">
+                  <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h5 class="card-title fw-bold m-0">${nome}</h5>
+                  </div>
+                  <p class="card-text text-muted small mb-1">
+                    <strong>Indirizzo:</strong> ${indirizzo}
+                  </p>
+                  <p class="card-text text-muted small mb-1">
+                    <strong>Telefono:</strong> ${telefono}
+                  </p>
+                  <p class="card-text text-muted small mb-3 flex-grow-1">
+                    <strong>P. IVA:</strong> ${piva}
+                  </p>
+                  <div class="pt-3 border-top text-end">
+                    <a href="menuCliente.html?id=${u._id}" class="btn btn-outline-orange btn-sm rounded-3 fw-semibold px-3">Vedi Menù</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+          container.innerHTML += cardHTML;
+        });
+      }
+      // Logout pulito senza codice superflui
+      document.getElementById('logoutBtn').addEventListener('click', () => {
+        localStorage.clear();
+        window.location.href = 'index.html';
+      });
   </script>
 </body>
 </html>
