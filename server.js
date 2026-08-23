@@ -519,28 +519,14 @@ app.get("/api/ristoranti", async (req, res) => {
     client = await MongoClient.connect(mongoURL);
     const coll = client.db("fastfood").collection("users");
 
-    const ristoratori = await coll.find(
-      { 
-        role: "ristoratore", 
-        "ristorante.nome": { $exists: true, $ne: "" } 
-      },
-      { 
-        projection: { 
-          _id: 1,
-          "ristorante": 1 
-        } 
-      }
-    ).toArray();
+    // Trova i ristoratori senza limitare i campi (senza projection)
+    const ristoratori = await coll.find({ 
+      role: "ristoratore", 
+      "ristorante.nome": { $exists: true, $ne: "" } 
+    }).toArray();
 
-    const listaRistoranti = ristoratori.map(u => ({
-      _id: u._id, // Mantiene l'ID del documento MongoDB
-      nome: u.ristorante?.nome,
-      indirizzo: u.ristorante?.indirizzo,
-      telefono: u.ristorante?.telefono,
-      partitaIva: u.ristorante?.partitaIva
-    }));
-
-    res.status(200).json(listaRistoranti);
+    // Restituisce l'array originale di utenti/ristoratori
+    res.status(200).json(ristoratori);
   } catch (error) {
     console.error("Errore nel recupero dei ristoranti:", error);
     res.status(500).json({ message: "Errore interno al server durante il recupero dei ristoranti." });
@@ -614,12 +600,45 @@ app.get("/api/meals/search", async (req, res) => {
         { ingredients: { $regex: queryPulita, $options: "i" } },
         { strMeal: { $regex: queryPulita, $options: "i" } },
         { strCategory: { $regex: queryPulita, $options: "i" } }
+        
       ]
     }).toArray();
 
     res.status(200).json(piattiFiltrati);
   } catch (error) {
     console.error("Errore durante la ricerca:", error);
+    res.status(500).json({ message: "Errore interno al server." });
+  } finally {
+    if (client) await client.close();
+  }
+});
+
+//ricerca ristoranti sulla base di nome e luogo
+app.get("/api/ristoranti/search", async (req, res) => {
+  const { q } = req.query;
+
+  if (!q || !q.trim()) {
+    return res.status(200).json([]);
+  }
+
+  const queryPulita = q.trim();
+  let client;
+
+  try {
+    client = await MongoClient.connect(mongoURL);
+    const coll = client.db("fastfood").collection("users");
+
+    const ristorantiFiltrati = await coll.find({
+      role: "ristoratore",
+      $or: [
+        { "ristorante.nome": { $regex: queryPulita, $options: "i" } },
+        { "ristorante.indirizzo": { $regex: queryPulita, $options: "i" } }
+      ]
+    }).toArray();
+
+    res.status(200).json(ristorantiFiltrati);
+  } catch (error) {
+    console.error("Errore durante la ricerca dei ristoranti:", error);
     res.status(500).json({ message: "Errore interno al server." });
   } finally {
     if (client) await client.close();
