@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkout Ordine</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #f4f6f8;
+    }
+    .card-checkout {
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      padding: 30px;
+    }
+  </style>
+</head>
+<body class="py-5">
+
+  <div class="container" style="max-width: 700px;">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <a href="javascript:history.back()" class="btn btn-outline-secondary">&larr; Torna al menù</a>
+      <a href="areaPersonale.html" class="btn btn-outline-primary">Profilo</a>
+    </div>
+
+    <div class="card-checkout">
+      <h2 class="fw-bold text-center mb-4 text-warning">Riepilogo Carrello</h2>
+
+      <p class="mb-3"><strong>Ristorante:</strong> <span id="nomeRistorante">-</span></p>
+
+      <ul class="list-group mb-4" id="listaPiattiCarrello">
+        <!-- I piatti salvati nel carrello verranno inseriti qui dinamicamente -->
+      </ul>
+
+      <div class="d-flex justify-content-between align-items-center mb-4 border-top pt-3 fs-5 fw-bold">
+        <span>Totale stimato:</span>
+        <span id="prezzoTotale" class="text-success">0.00 €</span>
+      </div>
+
+      <div class="d-grid gap-2">
+        <button class="btn btn-success btn-lg fw-semibold" id="confermaOrdineBtn" onclick="inviaOrdine()">
+          Conferma ed Invia Ordine
+        </button>
+        <button class="btn btn-outline-danger" onclick="svuotaCarrello()">
+          Svuota Carrello
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    let carrello = [];
+
+    document.addEventListener("DOMContentLoaded", () => {
+      caricaCarrello();
+    });
+
+    function caricaCarrello() {
+      // 1. Recupera il carrello dal localStorage
+      carrello = JSON.parse(localStorage.getItem('carrelloCliente')) || [];
+      
+      const containerList = document.getElementById('listaPiattiCarrello');
+      const ristoranteElem = document.getElementById('nomeRistorante');
+      const totaleElem = document.getElementById('prezzoTotale');
+
+      containerList.innerHTML = '';
+
+      if (carrello.length === 0) {
+        containerList.innerHTML = '<li class="list-group-item text-center text-muted">Il carrello è vuoto.</li>';
+        ristoranteElem.innerText = '-';
+        totaleElem.innerText = '0.00 €';
+        document.getElementById('confermaOrdineBtn').disabled = true;
+        return;
+      }
+
+      document.getElementById('confermaOrdineBtn').disabled = false;
+
+      let somma = 0;
+      let nomeRistorante = carrello[0].ristorante || 'Non specificato';
+      ristoranteElem.innerText = nomeRistorante;
+
+      // 2. Popola la lista
+      carrello.forEach((item, index) => {
+        let prezzoNum = parseFloat(item.prezzo) || 0;
+        somma += prezzoNum;
+
+        const li = document.createElement('li');
+        li.className = 'list-group-item d-flex justify-content-between align-items-center';
+        li.innerHTML = `
+          <span><strong>${item.nome}</strong></span>
+          <div>
+            <span class="badge bg-secondary me-2">${prezzoNum > 0 ? prezzoNum.toFixed(2) + ' €' : '-'}</span>
+            <button class="btn btn-sm btn-outline-danger" onclick="rimuoviPiatto(${index})">&times;</button>
+          </div>
+        `;
+        containerList.appendChild(li);
+      });
+
+      totaleElem.innerText = `${somma.toFixed(2)} €`;
+    }
+
+    function rimuoviPiatto(index) {
+      carrello.splice(index, 1);
+      localStorage.setItem('carrelloCliente', JSON.stringify(carrello));
+      caricaCarrello();
+    }
+
+    function svuotaCarrello() {
+      if (confirm("Sei sicuro di voler svuotare il carrello?")) {
+        localStorage.removeItem('carrelloCliente');
+        caricaCarrello();
+      }
+    }
+
+    async function inviaOrdine() {
+      const emailCliente = localStorage.getItem('userEmail');
+
+      if (!emailCliente) {
+        alert("Devi aver effettuato il login per confermare l'ordine!");
+        window.location.href = 'index.html';
+        return;
+      }
+
+      if (carrello.length === 0) {
+        alert("Il carrello è vuoto.");
+        return;
+      }
+
+      const nomeRistorante = carrello[0].ristorante || 'Non specificato';
+
+      let somma = 0;
+      carrello.forEach(item => {
+        somma += parseFloat(item.prezzo) || 0;
+      });
+
+      try {
+        // Invio dei dati al server MongoDB
+        const response = await fetch("http://localhost:3000/api/ordini/crea", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            emailCliente: emailCliente,
+            ristorante: nomeRistorante,
+            piatti: carrello, // Il server trarrà l'array dei soli nomi dei piatti
+            totale: somma
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || "Errore durante il salvataggio dell'ordine.");
+        }
+
+        alert("Ordine inviato con successo!");
+
+        // Svuota il carrello salvato in locale
+        localStorage.removeItem('carrelloCliente');
+
+        // Reindirizza l'utente all'area personale o alla pagina ristoranti
+        window.location.href = 'cliente.html';
+
+      } catch (error) {
+        console.error("Errore nell'invio dell'ordine:", error);
+        alert("Impossibile inviare l'ordine: " + error.message);
+      }
+    }
+  </script>
+</body>
+</html>
