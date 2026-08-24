@@ -722,3 +722,49 @@ app.listen(port, () => {
   );
 
 });
+
+app.post("/api/ordini/crea", async (req, res) => {
+  const { emailCliente, ristorante, piatti, totale } = req.body;
+
+  if (!emailCliente || !piatti || !Array.isArray(piatti) || piatti.length === 0) {
+    return res.status(400).json({
+      message: "Dati mancanti per la creazione dell'ordine."
+    });
+  }
+
+  let client;
+  try {
+    client = await MongoClient.connect(mongoURL);
+    // Salva nella collezione "ordini" dentro il database "fastfood"
+    const coll = client.db("fastfood").collection("ordini");
+
+    // Estrae solo i nomi dei piatti (come richiesto)
+    const nomiPiatti = piatti.map(p => p.nome || p);
+
+    const nuovoOrdine = {
+      emailCliente: emailCliente,
+      ristorante: ristorante || "Non specificato",
+      nomiPiatti: nomiPiatti,
+      totale: totale || 0,
+      stato: "inviato",
+      dataOrdine: new Date()
+    };
+
+    const result = await coll.insertOne(nuovoOrdine);
+
+    res.status(201).json({
+      message: "Ordine inviato con successo!",
+      ordineId: result.insertedId
+    });
+
+  } catch (error) {
+    console.error("Errore durante la creazione dell'ordine:", error);
+    res.status(500).json({
+      message: "Errore interno al server."
+    });
+  } finally {
+    if (client) {
+      await client.close();
+    }
+  }
+});
