@@ -6,9 +6,7 @@
   <title>Checkout Ordine</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    body {
-      background-color: #f4f6f8;
-    }
+    body { background-color: #f4f6f8; }
     .card-checkout {
       background-color: white;
       border-radius: 12px;
@@ -32,7 +30,7 @@
       <p class="mb-3"><strong>Ristorante:</strong> <span id="nomeRistorante">-</span></p>
 
       <ul class="list-group mb-4" id="listaPiattiCarrello">
-        <!-- I piatti salvati nel carrello verranno inseriti qui dinamicamente -->
+        <!-- I piatti salvati nel carrello sul DB verranno inseriti qui dinamicamente -->
       </ul>
 
       <div class="d-flex justify-content-between align-items-center mb-4 border-top pt-3 fs-5 fw-bold">
@@ -61,60 +59,105 @@
       caricaCarrello();
     });
 
-    function caricaCarrello() {
-      // 1. Recupera il carrello dal localStorage
-      carrello = JSON.parse(localStorage.getItem('carrelloCliente')) || [];
-      
+    async function caricaCarrello() {
+      const userEmail = localStorage.getItem("userEmail");
+      if (!userEmail) {
+        alert("Utente non autenticato. Effettua nuovamente il login.");
+        window.location.href = "index.html";
+        return;
+      }
+
       const containerList = document.getElementById('listaPiattiCarrello');
       const ristoranteElem = document.getElementById('nomeRistorante');
       const totaleElem = document.getElementById('prezzoTotale');
 
-      containerList.innerHTML = '';
+      try {
+        const response = await fetch(`http://localhost:3000/api/carrello?email=${encodeURIComponent(userEmail)}`);
+        
+        if (!response.ok) {
+          throw new Error("Errore nel recupero del carrello dal server.");
+        }
 
-      if (carrello.length === 0) {
-        containerList.innerHTML = '<li class="list-group-item text-center text-muted">Il carrello è vuoto.</li>';
-        ristoranteElem.innerText = '-';
-        totaleElem.innerText = '0.00 €';
-        document.getElementById('confermaOrdineBtn').disabled = true;
-        return;
+        carrello = await response.json();
+        containerList.innerHTML = '';
+
+        if (!Array.isArray(carrello) || carrello.length === 0) {
+          containerList.innerHTML = '<li class="list-group-item text-center text-muted">Il carrello è vuoto.</li>';
+          ristoranteElem.innerText = '-';
+          totaleElem.innerText = '0.00 €';
+          document.getElementById('confermaOrdineBtn').disabled = true;
+          return;
+        }
+
+        document.getElementById('confermaOrdineBtn').disabled = false;
+
+        let somma = 0;
+        let nomeRistorante = carrello[0].ristorante || 'Non specificato';
+        ristoranteElem.innerText = nomeRistorante;
+
+        carrello.forEach((item, index) => {
+          let prezzoNum = parseFloat(item.price) || 0;
+          somma += prezzoNum;
+
+          const li = document.createElement('li');
+          li.className = 'list-group-item d-flex justify-content-between align-items-center';
+          li.innerHTML = `
+            <span><strong>${item.strMeal || item.nome}</strong></span>
+            <div>
+              <span class="badge bg-secondary me-2">${prezzoNum > 0 ? prezzoNum.toFixed(2) + ' €' : '0.00 €'}</span>
+              <button class="btn btn-sm btn-outline-danger" onclick="rimuoviPiatto(${index})">&times;</button>
+            </div>
+          `;
+          containerList.appendChild(li);
+        });
+
+        totaleElem.innerText = `${somma.toFixed(2)} €`;
+
+      } catch (error) {
+        console.error("Errore durante il caricamento del carrello:", error);
+        containerList.innerHTML = `<li class="list-group-item text-center text-danger py-3">Impossibile caricare il carrello dal server.</li>`;
       }
-
-      document.getElementById('confermaOrdineBtn').disabled = false;
-
-      let somma = 0;
-      let nomeRistorante = carrello[0].ristorante || 'Non specificato';
-      ristoranteElem.innerText = nomeRistorante;
-
-      // 2. Popola la lista
-      carrello.forEach((item, index) => {
-        let prezzoNum = parseFloat(item.prezzo) || 0;
-        somma += prezzoNum;
-
-        const li = document.createElement('li');
-        li.className = 'list-group-item d-flex justify-content-between align-items-center';
-        li.innerHTML = `
-          <span><strong>${item.nome}</strong></span>
-          <div>
-            <span class="badge bg-secondary me-2">${prezzoNum > 0 ? prezzoNum.toFixed(2) + ' €' : '-'}</span>
-            <button class="btn btn-sm btn-outline-danger" onclick="rimuoviPiatto(${index})">&times;</button>
-          </div>
-        `;
-        containerList.appendChild(li);
-      });
-
-      totaleElem.innerText = `${somma.toFixed(2)} €`;
     }
 
-    function rimuoviPiatto(index) {
-      carrello.splice(index, 1);
-      localStorage.setItem('carrelloCliente', JSON.stringify(carrello));
-      caricaCarrello();
+    async function rimuoviPiatto(index) {
+      const userEmail = localStorage.getItem("userEmail");
+      
+      try {
+        const response = await fetch("http://localhost:3000/api/carrello/rimuovi", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: userEmail, index: index })
+        });
+
+        if (response.ok) {
+          caricaCarrello();
+        } else {
+          alert("Errore durante la rimozione del piatto.");
+        }
+      } catch (error) {
+        console.error("Errore:", error);
+      }
     }
 
-    function svuotaCarrello() {
-      if (confirm("Sei sicuro di voler svuotare il carrello?")) {
-        localStorage.removeItem('carrelloCliente');
-        caricaCarrello();
+    async function svuotaCarrello() {
+      if (!confirm("Sei sicuro di voler svuotare il carrello?")) return;
+
+      const userEmail = localStorage.getItem("userEmail");
+
+      try {
+        const response = await fetch("http://localhost:3000/api/carrello/svuota", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: userEmail })
+        });
+
+        if (response.ok) {
+          caricaCarrello();
+        } else {
+          alert("Errore durante lo svuotamento del carrello.");
+        }
+      } catch (error) {
+        console.error("Errore:", error);
       }
     }
 
@@ -127,7 +170,7 @@
         return;
       }
 
-      if (carrello.length === 0) {
+      if (!carrello || carrello.length === 0) {
         alert("Il carrello è vuoto.");
         return;
       }
@@ -136,11 +179,10 @@
 
       let somma = 0;
       carrello.forEach(item => {
-        somma += parseFloat(item.prezzo) || 0;
+        somma += parseFloat(item.price) || 0;
       });
 
       try {
-        // Invio dei dati al server MongoDB
         const response = await fetch("http://localhost:3000/api/ordini/crea", {
           method: "POST",
           headers: {
@@ -149,7 +191,7 @@
           body: JSON.stringify({
             emailCliente: emailCliente,
             ristorante: nomeRistorante,
-            piatti: carrello, // Il server trarrà l'array dei soli nomi dei piatti
+            piatti: carrello,
             totale: somma
           })
         });
@@ -161,12 +203,7 @@
         }
 
         alert("Ordine inviato con successo!");
-
-        // Svuota il carrello salvato in locale
-        localStorage.removeItem('carrelloCliente');
-
-        // Reindirizza l'utente all'area personale o alla pagina ristoranti
-        window.location.href = 'cliente.html';
+        window.location.href = 'elenco.html';
 
       } catch (error) {
         console.error("Errore nell'invio dell'ordine:", error);
