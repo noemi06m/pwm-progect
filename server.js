@@ -13,7 +13,6 @@ const port = 3000;
 app.use(express.json());
 app.use(cors());
 
-// Servizio file statici
 app.use(express.static(__dirname));
 
 //registrazione 
@@ -48,6 +47,9 @@ app.post("/api/register", async (req, res) => {
       role: role,
 
       ristorante: {
+        menu: []
+      },
+      carrello: {
         menu: []
       }
     };
@@ -645,6 +647,73 @@ app.get("/api/ristoranti/search", async (req, res) => {
   }
 });
 
+// Aggiunge un piatto al carrello del cliente
+app.post("/api/carrello/aggiungi", async (req, res) => {
+  const { email, idPiatto, price } = req.body;
+
+  if (!email || !idPiatto) {
+    return res.status(400).json({
+      message: "Email e ID del piatto sono obbligatori."
+    });
+  }
+
+  let client;
+  try {
+    client = await MongoClient.connect(mongoURL);
+    const db = client.db("fastfood");
+
+    // 1. Cerca il piatto nel catalogo globale
+    let piatto = await db.collection("meals").findOne({ 
+      _id: ObjectId.isValid(idPiatto) ? new ObjectId(idPiatto) : null 
+    });
+
+    // 2. Se non è nel catalogo globale, cerca tra i menu dei ristoratori
+    if (!piatto) {
+      const ristoratore = await db.collection("users").findOne(
+        { "ristorante.menu.mealId": idPiatto },
+        { projection: { "ristorante.menu.$": 1 } }
+      );
+
+      if (ristoratore && ristoratore.ristorante && ristoratore.ristorante.menu && ristoratore.ristorante.menu.length > 0) {
+        piatto = ristoratore.ristorante.menu[0];
+      }
+    }
+
+    if (!piatto) {
+      return res.status(404).json({ message: "Piatto non trovato." });
+    }
+
+    // 3. Gestione prezzo predefinito ed estrazione campi
+    let prezzoFinale = price;
+    if (prezzoFinale === undefined) {
+      prezzoFinale = piatto.price || 0;
+    }
+
+    const piattoCarrello = {
+      mealId: piatto._id ? piatto._id.toString() : piatto.mealId,
+      strMeal: piatto.strMeal,
+      strCategory: piatto.strCategory || "",
+      strMealThumb: piatto.strMealThumb || "",
+      ingredients: piatto.ingredients || [],
+      price: prezzoFinale
+    };
+
+    // 4. Inserisce il piatto nel carrello dell'utente
+    await db.collection("users").updateOne(
+      { email: email },
+      { $push: { "carrello.menu": piattoCarrello } }
+    );
+
+    res.status(200).json({ message: "Piatto aggiunto al carrello con successo!" });
+  } catch (error) {
+    console.error("ERRORE AGGIUNTA PIATTO AL CARRELLO:", error);
+    res.status(500).json({ message: "Errore interno del server." });
+  } finally {
+    if (client) {
+      await client.close();
+    }
+  }
+});
 
 app.listen(port, () => {
 
