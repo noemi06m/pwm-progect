@@ -161,7 +161,7 @@
                 <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
                   <span class="badge badge-prezzo fs-6 px-3 py-2 text-white">${prezzoTesto}</span>
                   <button class="btn btn-add-carrello btn-sm px-3 py-2 rounded-3" 
-                          onclick="aggiungiAlCarrello('${titoloPulito}', '${prezzoOriginale}')">
+                    onclick="aggiungiAlCarrello('${piatto.mealId || piatto._id}', '${prezzoOriginale}')">
                     Aggiungi +
                   </button>
                 </div>
@@ -174,25 +174,36 @@
     }
 
     // Funzione per aggiungere il piatto al carrello (localStorage)
-    function aggiungiAlCarrello(nomePiatto, prezzo) {
-      // 1. Recupera il carrello attuale o ne crea uno nuovo
-      let carrello = JSON.parse(localStorage.getItem('carrelloCliente')) || [];
+    async function aggiungiAlCarrello(idPiatto, prezzo) {
+      const emailUtente = localStorage.getItem("userEmail"); // Recupera l'email dell'utente loggato
 
-      // 2. Oggetto da salvare
-      const elemento = {
-        ristorante: nomeRistoranteCorrente,
-        nome: nomePiatto,
-        prezzo: prezzo
-      };
+      if (!emailUtente) {
+        alert("Effettua il login per aggiungere prodotti al carrello.");
+        return;
+      }
 
-      // 3. Aggiunge l'elemento
-      carrello.push(elemento);
+      try {
+        const response = await fetch("http://localhost:3000/api/carrello/aggiungi", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: emailUtente,
+            idPiatto: idPiatto,
+            price: Number(prezzo)
+          })
+        });
 
-      // 4. Salva nuovamente nel localStorage
-      localStorage.setItem('carrelloCliente', JSON.stringify(carrello));
+        const data = await response.json();
 
-      // 5. Invia l'alert di conferma
-      alert(`"${nomePiatto}" è stato aggiunto al carrello!`);
+        if (response.ok) {
+          alert("Piatto aggiunto al carrello con successo!");
+        } else {
+          alert(data.message || "Errore durante l'aggiunta al carrello.");
+        }
+      } catch (error) {
+        console.error("Errore aggiunta carrello:", error);
+        alert("Errore di connessione al server.");
+      }
     }
   </script>
 </body>
