@@ -28,6 +28,17 @@
       color: white;
       margin-bottom: 30px;
     }
+    .btn-add-carrello {
+      background-color: #ea580c;
+      color: white;
+      border: none;
+      font-weight: 600;
+      transition: background-color 0.2s;
+    }
+    .btn-add-carrello:hover {
+      background-color: #c2410c;
+      color: white;
+    }
   </style>
 </head>
 
@@ -37,7 +48,10 @@
     <div class="row mb-3">
       <div class="col d-flex justify-content-between align-items-center">
         <a href="elenco.html" class="btn btn-outline-light">&larr; Torna ai Ristoranti</a>
-        <a href="areaPersonale.html" class="btn btn-outline-light">Profilo utente</a>
+        <div>
+          <a href="checkout.html" class="btn btn-warning me-2 fw-semibold">🛒 Vai al Checkout</a>
+          <a href="areaPersonale.html" class="btn btn-outline-light">Profilo utente</a>
+        </div>
       </div>
     </div>
 
@@ -54,6 +68,8 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
   <script>
+    let nomeRistoranteCorrente = "";
+
     document.addEventListener("DOMContentLoaded", async () => {
       // 1. Estrae l'ID del ristorante dai parametri della query string dell'URL
       const urlParams = new URLSearchParams(window.location.search);
@@ -67,12 +83,15 @@
 
       // 2. Recupera le informazioni ed il menu del ristorante selezionato dal server
       try {
-      const response = await fetch(`http://localhost:3000/api/ristorante/${encodeURIComponent(ristoranteId)}`);
+        const response = await fetch(`http://localhost:3000/api/ristorante/${encodeURIComponent(ristoranteId)}`);
         if (!response.ok) {
           throw new Error("Impossibile recuperare i dati del ristorante.");
         }
 
         const data = await response.json();
+
+        // Salva il nome del ristorante per usarlo nel checkout
+        nomeRistoranteCorrente = data.nome || "Ristorante";
 
         // Popola l'intestazione con i dati del ristorante
         document.getElementById("rNome").innerText = data.nome;
@@ -110,8 +129,9 @@
         const titolo = piatto.strMeal || "Piatto senza nome";
         const categoria = piatto.strCategory || "Generico";
         const immagine = piatto.strMealThumb || "https://via.placeholder.com/400x200?text=No+Image";
+        const prezzoOriginale = piatto.price !== undefined ? piatto.price : 0;
         
-        // Gestione Prezzo
+        // Gestione Prezzo Visivo
         let prezzoTesto = "Prezzo non specificato";
         if (piatto.price !== undefined && piatto.price !== "") {
           prezzoTesto = typeof piatto.price === 'number' ? `${piatto.price.toFixed(2)} €` : `${piatto.price} €`;
@@ -122,6 +142,9 @@
         if (Array.isArray(piatto.ingredients) && piatto.ingredients.length > 0) {
           ingredientiTesto = piatto.ingredients.join(", ");
         }
+
+        // Fuga di eventuali virgolette nel titolo del piatto per evitare errori JavaScript
+        const titoloPulito = titolo.replace(/'/g, "\\'");
 
         const cardHTML = `
           <div class="col-12 col-md-6 col-lg-4">
@@ -137,6 +160,10 @@
                 </p>
                 <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
                   <span class="badge badge-prezzo fs-6 px-3 py-2 text-white">${prezzoTesto}</span>
+                  <button class="btn btn-add-carrello btn-sm px-3 py-2 rounded-3" 
+                          onclick="aggiungiAlCarrello('${titoloPulito}', '${prezzoOriginale}')">
+                    Aggiungi +
+                  </button>
                 </div>
               </div>
             </div>
@@ -144,6 +171,28 @@
         `;
         container.innerHTML += cardHTML;
       });
+    }
+
+    // Funzione per aggiungere il piatto al carrello (localStorage)
+    function aggiungiAlCarrello(nomePiatto, prezzo) {
+      // 1. Recupera il carrello attuale o ne crea uno nuovo
+      let carrello = JSON.parse(localStorage.getItem('carrelloCliente')) || [];
+
+      // 2. Oggetto da salvare
+      const elemento = {
+        ristorante: nomeRistoranteCorrente,
+        nome: nomePiatto,
+        prezzo: prezzo
+      };
+
+      // 3. Aggiunge l'elemento
+      carrello.push(elemento);
+
+      // 4. Salva nuovamente nel localStorage
+      localStorage.setItem('carrelloCliente', JSON.stringify(carrello));
+
+      // 5. Invia l'alert di conferma
+      alert(`"${nomePiatto}" è stato aggiunto al carrello!`);
     }
   </script>
 </body>
