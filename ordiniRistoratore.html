@@ -19,6 +19,16 @@
       border-radius: 1rem;
       overflow: hidden;
     }
+    .btn-outline-orange {
+      background-color: transparent;
+      color: #ea580c;
+      border: 2px solid #ea580c;
+    }
+    .btn-outline-orange:hover {
+      background-color: #8e3be7;
+      color: #ffffff;
+      border-color: #8e3be7;
+    }
   </style>
 </head>
 
@@ -63,8 +73,9 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
   <script>
-    document.addEventListener("DOMContentLoaded", async () => {
-      // Recupera l'email dal LocalStorage
+    document.addEventListener("DOMContentLoaded", caricaOrdini);
+
+    async function caricaOrdini() {
       const userEmail = localStorage.getItem("userEmail");
 
       if (!userEmail) {
@@ -109,9 +120,11 @@
           return;
         }
 
-        // 3. Rendering degli ordini in stile Card
+        // 3. Rendering degli ordini
         ordini.forEach(ordine => {
           const dataFormatted = new Date(ordine.dataOrdine).toLocaleString("it-IT");
+          const statoAttuale = ordine.stato || "inviato";
+          const tempoAttuale = ordine.tempoPreparazione || "";
           
           let listaPiattiHTML = "";
           if (Array.isArray(ordine.nomiPiatti) && ordine.nomiPiatti.length > 0) {
@@ -124,13 +137,14 @@
             <div class="card card-ordine shadow-sm mb-4">
               <div class="card-header bg-warning d-flex justify-content-between align-items-center py-3">
                 <span class="fw-bold text-dark fs-5">Ordine #${ordine._id.slice(-6)}</span>
-                <span class="badge badge-stato text-white fs-6 px-3 py-2 rounded-3">${ordine.stato || "inviato"}</span>
+                <span class="badge badge-stato text-white fs-6 px-3 py-2 rounded-3">${statoAttuale}</span>
               </div>
               <div class="card-body p-4">
                 <div class="row mb-3">
                   <div class="col-md-6">
                     <p class="mb-1 text-muted"><strong>Cliente:</strong> ${ordine.emailCliente}</p>
                     <p class="mb-1 text-muted"><strong>Data Ordine:</strong> ${dataFormatted}</p>
+                    <p class="mb-1 text-muted"><strong>Tempo stimato attuale:</strong> ${tempoAttuale ? tempoAttuale : 'Non specificato'}</p>
                   </div>
                   <div class="col-md-6 text-md-end">
                     <p class="fs-4 fw-bold text-dark mb-0">Totale: €${Number(ordine.totale).toFixed(2)}</p>
@@ -138,9 +152,39 @@
                 </div>
                 
                 <h6 class="fw-semibold text-secondary mb-2">Piatti ordinati:</h6>
-                <ul class="list-group list-group-flush rounded-3">
+                <ul class="list-group list-group-flush rounded-3 mb-4">
                   ${listaPiattiHTML}
                 </ul>
+
+                <!-- SEZIONE AGGIORNAMENTO STATO E TEMPO DI ESECUZIONE -->
+                <div class="p-3 bg-light rounded-3 border">
+                  <h6 class="fw-bold text-dark mb-3">Aggiorna Stato ed Esecuzione Ordine</h6>
+                  <div class="row g-2 align-items-center">
+                    <div class="col-md-5">
+                      <label class="form-label small fw-semibold text-muted mb-1">Tempo di esecuzione/preparazione</label>
+                      <input type="text" class="form-control" id="tempo-${ordine._id}" placeholder="Es. 20 minuti / 19:30" value="${tempoAttuale}">
+                    </div>
+                    
+                    <div class="col-md-4">
+                      <label class="form-label small fw-semibold text-muted mb-1">Stato Ordine</label>
+                      <select class="form-select" id="stato-${ordine._id}">
+                        <option value="inviato" ${statoAttuale === 'inviato' ? 'selected' : ''}>inviato</option>
+                        <option value="in preparazione" ${statoAttuale === 'in preparazione' ? 'selected' : ''}>in preparazione</option>
+                        <option value="pronto" ${statoAttuale === 'pronto' ? 'selected' : ''}>pronto</option>
+                        <option value="in transito" ${statoAttuale === 'in transito' ? 'selected' : ''}>in transito</option>
+                        <option value="consegnato" ${statoAttuale === 'consegnato' ? 'selected' : ''}>consegnato</option>
+                      </select>
+                    </div>
+
+                    <div class="col-md-3 d-grid">
+                      <label class="form-label small fw-semibold text-muted mb-1">&nbsp;</label>
+                      <button class="btn btn-outline-orange fw-bold" onclick="aggiornaOrdine('${ordine._id}')">
+                        Salva
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
               </div>
             </div>
           `;
@@ -155,7 +199,36 @@
             ${err.message}
           </div>`;
       }
-    });
+    }
+
+    // Funzione per salvare le modifiche dell'ordine su MongoDB
+    async function aggiornaOrdine(ordineId) {
+      const nuovoStato = document.getElementById(`stato-${ordineId}`).value;
+      const nuovoTempo = document.getElementById(`tempo-${ordineId}`).value.trim();
+
+      try {
+        const response = await fetch("http://localhost:3000/api/ordini/aggiorna-stato", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ordineId: ordineId,
+            stato: nuovoStato,
+            tempoPreparazione: nuovoTempo
+          })
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.message || "Errore durante l'aggiornamento.");
+        }
+
+        alert("Stato dell'ordine aggiornato con successo!");
+        caricaOrdini(); // Ricarica la lista per visualizzare subito i dati aggiornati
+      } catch (error) {
+        console.error("Errore salvataggio:", error);
+        alert("Impossibile aggiornare l'ordine: " + error.message);
+      }
+    }
   </script>
 </body>
 </html>
