@@ -647,3 +647,26 @@ app.post("/api/ordini/crea", async (req, res) => {
 app.listen(port, () => {
   console.log(`Server attivo su http://localhost:${port}`);
 });
+
+// GET ORDINI RICEVUTI DA UN RISTORANTE
+app.get("/api/ordini/ristorante", async (req, res) => {
+  const { ristorante } = req.query;
+  if (!ristorante) {
+    return res.status(400).json({ message: "Nome del ristorante obbligatorio." });
+  }
+  let client;
+  try {
+    client = await MongoClient.connect(mongoURL);
+    const coll = client.db("fastfood").collection("ordini");
+    
+    // Cerca tutti gli ordini destinati al nome del ristorante passato in query
+    const ordini = await coll.find({ ristorante: ristorante }).sort({ dataOrdine: -1 }).toArray();
+    
+    res.status(200).json(ordini);
+  } catch (error) {
+    console.error("Errore nel recupero degli ordini:", error);
+    res.status(500).json({ message: "Errore interno al server." });
+  } finally {
+    if (client) await client.close();
+  }
+})
