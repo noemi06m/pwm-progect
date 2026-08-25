@@ -30,6 +30,7 @@
     <div class="row mb-3 align-items-center">
       <div class="col text-end">
         <button class="btn btn-outline-light fw-bold shadow-sm" id="logoutBtn">Logout</button>
+        <button class="btn btn-warning shadow-sm" id="ordiniUtente">📦 I Miei Ordini</button>
       </div>
     </div>
 
@@ -61,7 +62,7 @@
       document.addEventListener('DOMContentLoaded', async () => {
         const email = localStorage.getItem('userEmail');
         if (!email) {
-          window.location.href = 'index.html';
+          window.location.href = 'iniziale.html';
           return;
         }
         // Carica subito la lista iniziale dei ristoranti
@@ -149,7 +150,11 @@
       // Logout pulito senza codice superflui
       document.getElementById('logoutBtn').addEventListener('click', () => {
         localStorage.clear();
-        window.location.href = 'index.html';
+        window.location.href = 'iniziale.html';
+      });
+
+      document.getElementById('ordiniUtente').addEventListener('click', () => {
+        window.location.href = 'ordiniCliente.html';
       });
   </script>
 </body>
