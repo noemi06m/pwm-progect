@@ -670,3 +670,50 @@ app.get("/api/ordini/ristorante", async (req, res) => {
     if (client) await client.close();
   }
 })
+
+// AGGIORNA STATO E TEMPO DI PREPARAZIONE DELL'ORDINE
+app.put("/api/ordini/aggiorna-stato", async (req, res) => {
+  const { ordineId, stato, tempoPreparazione } = req.body;
+
+  if (!ordineId || !stato) {
+    return res.status(400).json({ message: "ID ordine e stato sono obbligatori." });
+  }
+
+  let client;
+  try {
+    client = await MongoClient.connect(mongoURL);
+    const db = client.db("fastfood");
+    const filter = { _id: new ObjectId(ordineId) };
+    const update = {
+      $set: {
+        stato: stato,
+        tempoPreparazione: tempoPreparazione || "Non specificato"
+      }
+    };
+
+    // 1. Aggiorna l'ordine nella collezione principale "ordini"
+    const result = await db.collection("ordini").updateOne(filter, update);
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ message: "Ordine non trovato." });
+    }
+
+    // 2. Aggiorna lo stato anche all'interno dello storico 'ordini' nel documento dell'utente cliente
+    await db.collection("users").updateOne(
+      { "ordini._id": new ObjectId(ordineId) },
+      { 
+        $set: { 
+          "ordini.$.stato": stato,
+          "ordini.$.tempoPreparazione": tempoPreparazione || "Non specificato"
+        } 
+      }
+    );
+
+    res.status(200).json({ message: "Ordine aggiornato con successo!" });
+  } catch (error) {
+    console.error("Errore aggiornamento ordine:", error);
+    res.status(500).json({ message: "Errore interno al server." });
+  } finally {
+    if (client) await client.close();
+  }
+});
