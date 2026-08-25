@@ -644,10 +644,6 @@ app.post("/api/ordini/crea", async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server attivo su http://localhost:${port}`);
-});
-
 // GET ORDINI RICEVUTI DA UN RISTORANTE
 app.get("/api/ordini/ristorante", async (req, res) => {
   const { ristorante } = req.query;
@@ -716,4 +712,41 @@ app.put("/api/ordini/aggiorna-stato", async (req, res) => {
   } finally {
     if (client) await client.close();
   }
+});
+
+// get tutti ordini cliente
+app.get("/api/ordini/cliente", async (req, res) => {
+  const { email } = req.query;
+  if (!email) {
+    return res.status(400).json({ message: "L'email del cliente è obbligatoria." });
+  }
+
+  let client;
+  try {
+    client = await MongoClient.connect(mongoURL);
+    const coll = client.db("fastfood").collection("users");
+    
+    const user = await coll.findOne(
+      { email: email },
+      { projection: { ordini: 1 } }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "Utente non trovato." });
+    }
+
+    const ordini = user.ordini || [];
+    res.status(200).json(ordini);
+  } catch (error) {
+    console.error("Errore recupero ordini cliente:", error);
+    res.status(500).json({ message: "Errore interno al server." });
+  } finally {
+    if (client) await client.close();
+  }
+});
+
+
+
+app.listen(port, () => {
+  console.log(`Server attivo su http://localhost:${port}`);
 });
