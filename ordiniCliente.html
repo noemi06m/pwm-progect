@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>I miei Ordini</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { 
+      background-color: #ea580c; 
+      min-height: 100vh;
+    }
+    .info-header {
+      background-color: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(5px);
+      border-radius: 12px;
+      padding: 20px;
+      color: white;
+      margin-bottom: 30px;
+    }
+    .badge-inviato { background-color: #fd7e14; }
+    .badge-completato { background-color: #198754; }
+    .badge-annullato { background-color: #dc3545; }
+    .badge-in-lavorazione { background-color: #0d6efd; }
+  </style>
+</head>
+<body class="py-5">
+  <div class="container">
+    <!-- Pulsanti di navigazione superiori -->
+    <div class="row mb-4">
+      <div class="col d-flex justify-content-between align-items-center">
+        <a href="elenco.html" class="btn btn-outline-light">&larr; Torna alla pagina iniziale</a>
+        <div>
+          <a href="areaPersonale.html" class="btn btn-outline-light">Profilo Utente</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Header della Sezione -->
+    <div class="info-header">
+      <h1 class="fw-bold display-5 text-warning mb-2">I Miei Ordini</h1>
+      <p class="mb-0 fs-5" id="userEmailDisplay">Gestisci e monitora i tuoi ordini recenti e passati.</p>
+    </div>
+
+    <!-- SEZIONE ORDINE ATTUALE IN CORSO -->
+    <div class="row mb-5">
+      <div class="col-12">
+        <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+          <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-3">
+            <h4 class="mb-0 fw-bold text-warning">⌛ Ordine Attuale</h4>
+            <span id="badgeStatoAttuale" class="badge fs-6 px-3 py-2 bg-secondary">Nessun ordine attivo</span>
+          </div>
+          <div class="card-body p-4" id="ordineAttualeContainer">
+            <p class="text-muted text-center my-3">Caricamento ordine in corso...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEZIONE STORICO ORDINI PASSATI -->
+    <div class="row">
+      <div class="col-12">
+        <div class="card shadow border-0 rounded-4 overflow-hidden">
+          <div class="card-header bg-white py-3">
+            <h4 class="mb-0 fw-bold text-dark">📋 Storico Ordini</h4>
+          </div>
+          <div class="card-body p-4">
+            <div id="storicoOrdiniContainer" class="row g-3">
+              <p class="text-muted text-center my-3">Caricamento dello storico ordini...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+        const emailUtente = localStorage.getItem("userEmail");
+
+        if (!emailUtente) {
+            alert("Devi effettuare il login per visualizzare i tuoi ordini.");
+            window.location.href = "iniziale.html";
+            return;
+        }
+
+        document.getElementById("userEmailDisplay").innerText = `Utente: ${emailUtente}`;
+
+        try {
+            const response = await fetch(`http://localhost:3000/api/ordini/cliente?email=${encodeURIComponent(emailUtente)}`);
+            if (!response.ok) throw new Error("Errore durante il recupero dei dati dell'ordine.");
+
+            const ordini = await response.json();
+            renderizzaOrdini(ordini);
+        } catch (error) {
+            console.error("Errore caricamento ordini:", error);
+            document.getElementById("ordineAttualeContainer").innerHTML = `
+            <p class="text-danger text-center">Impossibile recuperare i dettagli degli ordini al momento.</p>
+            `;
+            document.getElementById("storicoOrdiniContainer").innerHTML = `
+            <p class="text-danger text-center">Errore di connessione al server.</p>
+            `;
+        }
+    });
+
+    function getBadgeClass(stato) {
+      switch ((stato || "").toLowerCase()) {
+        case "inviato": return "badge-inviato";
+        case "in preparazione":
+        case "in lavorazione": return "badge-in-lavorazione";
+        case "completato": return "badge-completato";
+        case "annullato": return "badge-annullato";
+        default: return "bg-secondary";
+      }
+    }
+
+    function renderizzaOrdini(ordini) {
+      const ordineAttualeContainer = document.getElementById("ordineAttualeContainer");
+      const storicoOrdiniContainer = document.getElementById("storicoOrdiniContainer");
+      const badgeStatoAttuale = document.getElementById("badgeStatoAttuale");
+
+      // Ordiniamo dal più recente al più vecchio
+      const ordiniOrdinati = [...ordini].reverse();
+
+      // Trova l'ordine in corso (stato "inviato", "in lavorazione" o "in preparazione")
+      const ordineAttuale = ordiniOrdinati.find(o => {
+        const st = o.stato?.toLowerCase();
+        return st === "inviato" || st === "in lavorazione" || st === "in preparazione";
+      });
+
+      // Filtra gli altri ordini per lo storico
+      const ordiniPassati = ordiniOrdinati.filter(o => o !== ordineAttuale);
+
+      // --- RENDERING ORDINE ATTUALE ---
+      if (ordineAttuale) {
+        const dataFormattata = new Date(ordineAttuale.dataOrdine).toLocaleString("it-IT");
+        const totaleFormattato = typeof ordineAttuale.totale === "number" ? ordineAttuale.totale.toFixed(2) : ordineAttuale.totale;
+        const tempoP = ordineAttuale.tempoPreparazione || "Non specificato";
+
+        badgeStatoAttuale.className = `badge fs-6 px-3 py-2 ${getBadgeClass(ordineAttuale.stato)}`;
+        badgeStatoAttuale.innerText = ordineAttuale.stato.toUpperCase();
+
+        const listaPiattiHTML = (ordineAttuale.nomiPiatti || []).map(p => `<li class="list-group-item">${p}</li>`).join("");
+
+        ordineAttualeContainer.innerHTML = `
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <p class="mb-1"><strong>Ristorante:</strong> ${ordineAttuale.ristorante || 'Non specificato'}</p>
+              <p class="mb-1"><strong>Data Ordine:</strong> ${dataFormattata}</p>
+              <p class="mb-1"><strong>⏱ Tempo Stimato:</strong> <span class="badge bg-warning text-dark fs-6">${tempoP}</span></p>
+              <p class="mb-1"><strong>ID Ordine:</strong> <small class="text-muted">${ordineAttuale._id || '-'}</small></p>
+              <h4 class="mt-3 text-success">Totale: ${totaleFormattato} €</h4>
+            </div>
+            <div class="col-md-6">
+              <h6><strong>Piatti ordinati:</strong></h6>
+              <ul class="list-group shadow-sm">
+                ${listaPiattiHTML || '<li class="list-group-item text-muted">Nessun dettaglio piatti</li>'}
+              </ul>
+            </div>
+          </div>
+        `;
+      } else {
+        badgeStatoAttuale.className = "badge fs-6 px-3 py-2 bg-secondary";
+        badgeStatoAttuale.innerText = "Nessun ordine attivo";
+        ordineAttualeContainer.innerHTML = `
+          <div class="text-center py-4">
+            <p class="fs-5 text-muted mb-3">Non hai alcun ordine in corso in questo momento.</p>
+            <a href="elenco.html" class="btn btn-warning fw-semibold">Sfoglia Ristoranti per Ordinare</a>
+          </div>
+        `;
+      }
+
+      // --- RENDERING STORICO ORDINI ---
+      storicoOrdiniContainer.innerHTML = "";
+      if (ordiniPassati.length === 0) {
+        storicoOrdiniContainer.innerHTML = `
+          <div class="col-12 text-center py-3 text-muted">
+            <p class="mb-0">Nessun ordine passato nello storico.</p>
+          </div>
+        `;
+        return;
+      }
+
+      ordiniPassati.forEach(ord => {
+        const dataFormattata = new Date(ord.dataOrdine).toLocaleString("it-IT");
+        const totaleFormattato = typeof ord.totale === "number" ? ord.totale.toFixed(2) : ord.totale;
+        const listaPiatti = (ord.nomiPiatti || []).join(", ");
+        const tempoP = ord.tempoPreparazione ? ` • ⏱ ${ord.tempoPreparazione}` : '';
+
+        const cardHTML = `
+          <div class="col-12 col-md-6">
+            <div class="card h-100 border-light-subtle shadow-sm rounded-3">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <h5 class="card-title fw-bold text-dark m-0">${ord.ristorante || "Ristorante"}</h5>
+                  <span class="badge ${getBadgeClass(ord.stato)} text-white px-2 py-1">${(ord.stato || "completato").toUpperCase()}</span>
+                </div>
+                <p class="text-muted small mb-2">📅 ${dataFormattata}${tempoP}</p>
+                <p class="card-text mb-2"><strong>Piatti:</strong> ${listaPiatti || 'Dettagli non disponibili'}</p>
+                <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+                  <span class="fw-bold text-success fs-5">${totaleFormattato} €</span>
+                  <small class="text-muted">ID: ${ord._id ? ord._id.substring(0, 8) + '...' : '-'}</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        storicoOrdiniContainer.innerHTML += cardHTML;
+      });
+    }
+  </script>
+</body>
+</html>
