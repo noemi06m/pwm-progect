@@ -745,6 +745,71 @@ app.get("/api/ordini/cliente", async (req, res) => {
   }
 });
 
+// Recupera i metodi di pagamento salvati per l'utente
+app.get("/api/metodi-pagamento", async (req, res) => {
+  const { email } = req.query;
+  if (!email) {
+    return res.status(400).json({ message: "Email obbligatoria." });
+  }
+  let client;
+  try {
+    client = await MongoClient.connect(mongoURL);
+    const coll = client.db("fastfood").collection("users");
+    
+    // Recupero il documento utente completo senza projection
+    const user = await coll.findOne({ email: email });
+
+    if (!user) {
+      return res.status(404).json({ message: "Utente non trovato." });
+    }
+
+    res.status(200).json(user.metodiPagamento || []);
+  } catch (error) {
+    console.error("Errore recupero metodi di pagamento:", error);
+    res.status(500).json({ message: "Errore interno al server." });
+  } finally {
+    if (client) await client.close();
+  }
+});
+
+// Aggiunge un nuovo metodo di pagamento nell'array dell'utente
+app.post("/api/metodi-pagamento/aggiungi", async (req, res) => {
+  const { email, metodo } = req.body;
+  if (!email || !metodo || !metodo.tipo) {
+    return res.status(400).json({ message: "Dati di pagamento incompleti." });
+  }
+
+  let client;
+  try {
+    client = await MongoClient.connect(mongoURL);
+    const coll = client.db("fastfood").collection("users");
+
+    const nuovoMetodo = {
+      _id: new ObjectId(),
+      tipo: metodo.tipo,
+      intestatario: metodo.intestatario || "",
+      numeroMascherato: metodo.numero ? `**** **** **** ${metodo.numero.slice(-4)}` : "N/D",
+      scadenza: metodo.scadenza || ""
+    };
+
+    const result = await coll.updateOne(
+      { email: email },
+      { $push: { metodiPagamento: nuovoMetodo } }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ message: "Utente non trovato." });
+    }
+
+    res.status(201).json({ message: "Metodo di pagamento aggiunto!", metodo: nuovoMetodo });
+  } catch (error) {
+    console.error("Errore salvataggio metodo di pagamento:", error);
+    res.status(500).json({ message: "Errore interno al server." });
+  } finally {
+    if (client) await client.close();
+  }
+});
+
 
 
 app.listen(port, () => {
