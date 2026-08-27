@@ -849,6 +849,96 @@ app.post("/api/metodi-pagamento/aggiungi", async (req, res) => {
   }
 });
 
+app.get("/api/meals/search", async (req, res) => {
+  const { q } = req.query;
+  let client;
+
+  try {
+    client = await MongoClient.connect(mongoURL);
+    const coll = client.db("fastfood").collection("meals");
+
+    if (!q || !q.trim()) {
+      const allMeals = await coll.find({}).toArray();
+      return res.status(200).json(allMeals);
+    }
+
+    const queryPulita = q.trim();
+    const piattiFiltrati = await coll.find({
+      $or: [
+        { ingredients: { $regex: queryPulita, $options: "i" } },
+        { strMeal: { $regex: queryPulita, $options: "i" } },
+        { strCategory: { $regex: queryPulita, $options: "i" } }
+      ]
+    }).toArray();
+
+    res.status(200).json(piattiFiltrati);
+  } catch (error) {
+    console.error("Errore durante la ricerca piatti:", error);
+    res.status(500).json({ message: "Errore interno al server." });
+  } finally {
+    if (client) await client.close();
+  }
+});
+
+// SEARCH RISTORANTI (Nome/Luogo, Piatto nel menù, Prezzo Max, Allergie)
+app.get("/api/ristoranti/search", async (req, res) => {
+  const { q, piatto, maxPrice, allergy } = req.query;
+  let client;
+
+  try {
+    client = await MongoClient.connect(mongoURL);
+    const coll = client.db("fastfood").collection("users");
+
+    let queryConditions = [{ role: "ristoratore" }];
+
+    // 1. Ricerca per nome ristorante o indirizzo
+    if (q && q.trim()) {
+      const queryPulita = q.trim();
+      queryConditions.push({
+        $or: [
+          { "ristorante.nome": { $regex: queryPulita, $options: "i" } },
+          { "ristorante.indirizzo": { $regex: queryPulita, $options: "i" } }
+        ]
+      });
+    }
+
+    // Costruzione filtro avanzato sui piatti all'interno del menù del ristorante
+    let elemMatchQuery = {};
+
+    // 2. Filtro per Piatto
+    if (piatto && piatto.trim()) {
+      elemMatchQuery.strMeal = { $regex: piatto.trim(), $options: "i" };
+    }
+
+    // 3. Filtro per Prezzo Massimo
+    if (maxPrice && !isNaN(parseFloat(maxPrice))) {
+      elemMatchQuery.price = { $lte: parseFloat(maxPrice) };
+    }
+
+    // 4. Filtro Esclusione Allergie (esclude i piatti con l'ingrediente indicato)
+    if (allergy && allergy.trim()) {
+      elemMatchQuery.ingredients = { $not: { $regex: allergy.trim(), $options: "i" } };
+    }
+
+    // Se c'est almeno un filtro sul menù, applichiamo $elemMatch
+    if (Object.keys(elemMatchQuery).length > 0) {
+      queryConditions.push({
+        "ristorante.menu": { $elemMatch: elemMatchQuery }
+      });
+    }
+
+    const finalQuery = { $and: queryConditions };
+    const ristorantiFiltrati = await coll.find(finalQuery).toArray();
+
+    res.status(200).json(ristorantiFiltrati);
+  } catch (error) {
+    console.error("Errore durante la ricerca ristoranti:", error);
+    res.status(500).json({ message: "Errore interno al server." });
+  } finally {
+    if (client) await client.close();
+  }
+});
+
 
 app.listen(port, () => {
   console.log(`Server attivo su http://localhost:${port}`);
