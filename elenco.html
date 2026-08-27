@@ -38,16 +38,29 @@
     <div class="row mb-4">
       <div class="col text-center">
         <h1 class="fw-bold display-5 text-warning">Ristoranti Disponibili</h1>
-        <p class="text-white">Cerca un ristorante per nome o per località!</p>
+        <p class="text-white">Trova il ristorante perfetto per nome, piatto, prezzo o escludendo gli allergeni!</p>
       </div>
     </div>
 
-    <!-- Barra di Ricerca Unica (Bootstrap) -->
+    <!-- Barra di Ricerca Avanzata Ristoranti -->
     <div class="row mb-5 justify-content-center">
-      <div class="col-md-6">
-        <div class="input-group">
-          <input type="text" id="inputCercaRistorante" class="form-control" placeholder="Cerca per nome o luogo (es. Da Mario, Milano...)">
-          <button class="btn btn-warning fw-bold" onclick="ricercaRistorante()">Cerca</button>
+      <div class="col-md-11">
+        <div class="row g-2">
+          <div class="col-md-3">
+            <input type="text" id="inputCercaRistorante" class="form-control" placeholder="Ristorante o luogo...">
+          </div>
+          <div class="col-md-3">
+            <input type="text" id="inputCercaPiattoRist" class="form-control" placeholder="Nome piatto...">
+          </div>
+          <div class="col-md-2">
+            <input type="number" id="inputMaxPrezzo" class="form-control" placeholder="Prezzo Max (€)" step="0.50">
+          </div>
+          <div class="col-md-3">
+            <input type="text" id="inputAllergia" class="form-control" placeholder="Escludi allergene (es. Noci)">
+          </div>
+          <div class="col-md-1">
+            <button class="btn btn-warning fw-bold w-100" onclick="ricercaRistorante()">Cerca</button>
+          </div>
         </div>
       </div>
     </div>
@@ -58,14 +71,12 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-      // Si attiva automaticante all'apertura della pagina
       document.addEventListener('DOMContentLoaded', async () => {
         const email = localStorage.getItem('userEmail');
         if (!email) {
           window.location.href = 'iniziale.html';
           return;
         }
-        // Carica subito la lista iniziale dei ristoranti
         caricaRistoranti();
       });
 
@@ -83,14 +94,23 @@
 
       async function ricercaRistorante() {
         const q = document.getElementById("inputCercaRistorante").value.trim();
+        const piatto = document.getElementById("inputCercaPiattoRist").value.trim();
+        const maxPrice = document.getElementById("inputMaxPrezzo").value.trim();
+        const allergy = document.getElementById("inputAllergia").value.trim();
 
-        if (!q) {
+        if (!q && !piatto && !maxPrice && !allergy) {
           caricaRistoranti();
           return;
         }
 
         try {
-          const response = await fetch(`http://localhost:3000/api/ristoranti/search?q=${encodeURIComponent(q)}`);
+          const params = new URLSearchParams();
+          if (q) params.append("q", q);
+          if (piatto) params.append("piatto", piatto);
+          if (maxPrice) params.append("maxPrice", maxPrice);
+          if (allergy) params.append("allergy", allergy);
+
+          const response = await fetch(`http://localhost:3000/api/ristoranti/search?${params.toString()}`);
           if (!response.ok) throw new Error("Errore durante la ricerca.");
 
           const ristoranti = await response.json();
@@ -108,13 +128,12 @@
         if (!ristoranti || ristoranti.length === 0) {
           container.innerHTML = `
             <div class="col-12 text-center text-white">
-              <p class="fs-5">Nessun ristorante trovato.</p>
+              <p class="fs-5">Nessun ristorante trovato con i criteri inseriti.</p>
             </div>`;
           return;
         }
 
         ristoranti.forEach(u => {
-          // Estrae l'oggetto nidificato ristorante
           const r = u.ristorante || {};
           const nome = r.nome || 'Nome non disponibile';
           const indirizzo = r.indirizzo || 'Indirizzo non specificato';
@@ -147,7 +166,7 @@
           container.innerHTML += cardHTML;
         });
       }
-      // Logout pulito senza codice superflui
+
       document.getElementById('logoutBtn').addEventListener('click', () => {
         localStorage.clear();
         window.location.href = 'iniziale.html';
