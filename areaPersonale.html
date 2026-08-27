@@ -1,120 +1,186 @@
 <!DOCTYPE html>
 <html lang="it">
-<head>
-  <meta charset="UTF-8">
-  <title>Area Personale</title>
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 500px; margin: 40px auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
-    .card { background-color: #f9f9f9; padding: 15px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #007bff; }
-    .card.ristorante { border-left-color: #28a745; }
-    h2 { margin-top: 0; color: #333; }
-    p { margin: 8px 0; }
-    .label { font-weight: bold; }
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Area Personale</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    /* Stile essenziale per il pulsante */
-.btn-outline-orange {
-  display: block;
-  width: 100%;
-  padding: 10px;
-  background-color: transparent;
-  color: #ea580c;
-  border: 2px solid #ea580c;
-  border-radius: 6px;
-  text-align: center;
-  text-decoration: none;
-  box-sizing: border-box;
-  font-weight: bold;
-}
-
-/* Solo il cambio colore all'hover */
-.btn-outline-orange:hover {
-  background-color: #8e3be7;
-  border-color: #8e3be7;
-  color: #ffffff;
-}
-  </style>
-</head>
-<body>
-
-  <h1>La tua Area Personale</h1>
-
-  <!-- Scheda sempre visibile per tutti -->
-  <div class="card">
-    <h2>Dati Profilo</h2>
-    <p><span class="label">Email:</span> <span id="uEmail">-</span></p>
-    <p><span class="label">Ruolo:</span> <span id="uRole">-</span></p>
-  </div>
-
-  <!-- Scheda mostrata SOLO se l'utente è un ristoratore -->
-  <div class="card ristorante" id="cardRistorante" style="display: none;">
-    <h2>Dati Ristorante</h2>
-    <p><span class="label">Nome Ristorante:</span> <span id="rNome">-</span></p>
-    <p><span class="label">Indirizzo:</span> <span id="rIndirizzo">-</span></p>
-    <p><span class="label">Telefono:</span> <span id="rTelefono">-</span></p>
-    <p><span class="label">Partita IVA:</span> <span id="rIva">-</span></p>
-  </div>
-
-  <button id="btndinamico" class="btn btn-outline-orange btn-lg rounded-3 fw-semibold">vai alla tua area</button>
-
-  <script>
-
-    var ruoloUtente = '';
-    function gestioneAccesso() {
-    if (ruoloUtente === 'ristoratore'){
-      window.location.href = 'piatti.html';
-    }else{
-      window.location.href = 'cliente.html';
-    }
-  }
-
-  document.getElementById('btndinamico').addEventListener('click',gestioneAccesso);
-  
-  document.addEventListener('DOMContentLoaded', async () => {
-  const email = localStorage.getItem('userEmail');
-
-  if (!email) {
-    window.location.href = 'registrazione.html'; // O index.html
-    return;
-  }
-
-  try {
-    const response = await fetch(`http://localhost:3000/api/utente?email=${encodeURIComponent(email)}`);
-    const data = await response.json();
-
-    if (response.ok && data.user) {
-
-      ruoloUtente = data.user.role;
-      // Mostra i dati generali
-      document.getElementById('uEmail').innerText = data.user.email;
-      document.getElementById('uRole').innerText = data.user.role;
-
-      // Gestione Ristoratore
-      if (data.user.role === 'ristoratore') {
-        const cardRist = document.getElementById('cardRistorante');
-        cardRist.style.display = 'block';
-
-        if (data.user.ristorante) {
-          document.getElementById('rNome').innerText = data.user.ristorante.nome;
-          document.getElementById('rIndirizzo').innerText = data.user.ristorante.indirizzo;
-          document.getElementById('rTelefono').innerText = data.user.ristorante.telefono;
-          document.getElementById('rIva').innerText = data.user.ristorante.partitaIva;
-        } else {
-          cardRist.innerHTML = '<h2>Dati Ristorante</h2><p>Nessun ristorante registrato. <a href="ristoratore.html">Inserisci ora</a></p>';
-        }
-        
+    <style>
+      body {
+        background: linear-gradient(135deg, #d97706 0%, #ea580c 50%, #f97316 100%);
+        min-height: 100vh;
       }
-    } else {
-      
-      alert(data.message || 'Utente non trovato nel database. Effettua nuovamente la registrazione.');
-      localStorage.clear();
-      window.location.href = 'registrazione.html';
-    }
-  } catch (err) {
-    console.error('Errore di connessione:', err);
-    alert('Impossibile contattare il server.');
-  }
-  
-});
-  </script>
-</body>
+
+      .btn-custom {
+        background-color: transparent;
+        color: #ea580c;
+        border: 2px solid #ea580c;
+        transition: all 0.3s ease;
+      }
+
+      .btn-custom:hover {
+        background-color: #8e3be7;
+        color: #ffffff;
+        border-color: #8e3be7;
+      }
+    </style>
+  </head>
+
+  <body class="d-flex align-items-center justify-content-center min-vh-100 py-4">
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-12 col-sm-10 col-md-8 col-lg-6">
+          <div class="card bg-white text-dark border-0 shadow-lg p-3 p-md-4 rounded-4">
+            <div class="card-body">
+
+              <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="fw-bold mb-0" style="color: #ea580c;">Area Personale</h2>
+                <button onclick="logout()" class="btn btn-sm btn-outline-danger fw-bold">Logout</button>
+              </div>
+
+              <!-- Dati Utente -->
+              <div class="card border-0 bg-light p-3 mb-3 rounded-3">
+                <h5 class="fw-bold mb-3" style="color: #ea580c;">Dati Profilo</h5>
+                <p class="mb-2"><strong>Email:</strong> <span id="uEmail" class="text-muted">-</span></p>
+                <p class="mb-0"><strong>Ruolo:</strong> <span id="uRole" class="badge bg-secondary fs-6">-</span></p>
+              </div>
+
+              <!-- Dati Ristorante (mostrato solo se ristoratore) -->
+              <div class="card border-0 bg-light p-3 mb-4 rounded-3" id="cardRistorante" style="display: none;">
+                <h5 class="fw-bold mb-3 text-success">Dati Ristorante</h5>
+                <div id="contenutoRistorante">
+                  <p class="mb-2"><strong>Nome:</strong> <span id="rNome" class="text-muted">-</span></p>
+                  <p class="mb-2"><strong>Indirizzo:</strong> <span id="rIndirizzo" class="text-muted">-</span></p>
+                  <p class="mb-2"><strong>Telefono:</strong> <span id="rTelefono" class="text-muted">-</span></p>
+                  <p class="mb-0"><strong>Partita IVA:</strong> <span id="rIva" class="text-muted">-</span></p>
+                </div>
+              </div>
+
+              <!-- Metodi di Pagamento Salvati (mostrato solo se cliente) -->
+              <div class="card border-0 bg-light p-3 mb-4 rounded-3" id="cardMetodiPagamento" style="display: none;">
+                <h5 class="fw-bold mb-3 text-dark">Metodi di Pagamento</h5>
+                <ul class="list-group list-group-flush rounded-3" id="listaMetodiProfilo">
+                  <!-- Inseriti dinamicamente -->
+                </ul>
+              </div>
+
+              <!-- Azione principale -->
+              <div class="d-grid gap-2 mt-4">
+                <button id="btndinamico" class="btn btn-custom btn-lg fw-bold rounded-3 fs-6">
+                  Vai alla tua area
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+      let ruoloUtente = '';
+
+      function gestioneAccesso() {
+        if (ruoloUtente === 'ristoratore') {
+          window.location.href = 'piatti.html';
+        } else {
+          window.location.href = 'elenco.html';
+        }
+      }
+
+      function logout() {
+        localStorage.clear();
+        window.location.href = 'index.html';
+      }
+
+      document.getElementById('btndinamico').addEventListener('click', gestioneAccesso);
+
+      document.addEventListener('DOMContentLoaded', async () => {
+        const email = localStorage.getItem('userEmail');
+
+        if (!email) {
+          window.location.href = 'index.html';
+          return;
+        }
+
+        try {
+          const response = await fetch(`http://localhost:3000/api/utente?email=${encodeURIComponent(email)}`);
+          const data = await response.json();
+
+          if (response.ok && data.user) {
+            ruoloUtente = data.user.role;
+
+            document.getElementById('uEmail').innerText = data.user.email;
+            document.getElementById('uRole').innerText = data.user.role.toUpperCase();
+
+            if (data.user.role === 'ristoratore') {
+              const cardRist = document.getElementById('cardRistorante');
+              cardRist.style.display = 'block';
+
+              if (data.user.ristorante && data.user.ristorante.nome) {
+                document.getElementById('rNome').innerText = data.user.ristorante.nome;
+                document.getElementById('rIndirizzo').innerText = data.user.ristorante.indirizzo || '-';
+                document.getElementById('rTelefono').innerText = data.user.ristorante.telefono || '-';
+                document.getElementById('rIva').innerText = data.user.ristorante.partitaIva || '-';
+              } else {
+                document.getElementById('contenutoRistorante').innerHTML = `
+                  <p class="text-muted mb-2">Nessun dettaglio ristorante inserito.</p>
+                  <a href="ristoratore.html" class="fw-bold text-decoration-none" style="color: #ea580c;">Inserisci dati ora &rarr;</a>
+                `;
+              }
+            } else {
+              caricaMetodiPagamento(email);
+            }
+          } else {
+            alert(data.message || 'Utente non trovato nel database.');
+            localStorage.clear();
+            window.location.href = 'index.html';
+          }
+        } catch (err) {
+          console.error('Errore di connessione:', err);
+          alert('Impossibile contattare il server.');
+        }
+      });
+
+      async function caricaMetodiPagamento(email) {
+        const cardMetodi = document.getElementById('cardMetodiPagamento');
+        const listaMetodi = document.getElementById('listaMetodiProfilo');
+
+        try {
+          const res = await fetch(`http://localhost:3000/api/metodi-pagamento?email=${encodeURIComponent(email)}`);
+          if (!res.ok) return;
+
+          const metodi = await res.json();
+          cardMetodi.style.display = 'block';
+
+          if (metodi.length === 0) {
+            listaMetodi.innerHTML = '<li class="list-group-item bg-transparent text-muted px-0">Nessun metodo salvato.</li>';
+            return;
+          }
+
+          listaMetodi.innerHTML = '';
+          metodi.forEach(m => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item bg-transparent d-flex justify-content-between align-items-center px-0';
+            li.innerHTML = `
+              <div>
+                <strong>${m.tipo}</strong> - ${m.numeroMascherato}
+                <br><small class="text-muted">Intestatario: ${m.intestatario}</small>
+              </div>
+              <span class="badge bg-secondary">${m.scadenza}</span>
+            `;
+            listaMetodi.appendChild(li);
+          });
+        } catch (err) {
+          console.error("Errore caricamento metodi:", err);
+        }
+      }
+    </script>
+  </body>
 </html>
