@@ -745,6 +745,45 @@ app.get("/api/ordini/cliente", async (req, res) => {
   }
 });
 
+app.post("/api/ristorante/dettagli", async (req, res) => {
+  const { email, ristorante } = req.body;
+  if (!email || !ristorante) {
+    return res.status(400).json({ message: "Dati mancanti." });
+  }
+  let client;
+  try {
+    client = await MongoClient.connect(mongoURL);
+    const coll = client.db("fastfood").collection("users");
+    const user = await coll.findOne({ email: email });
+
+    if (!user) {
+      return res.status(404).json({ message: "Utente non trovato." });
+    }
+
+    const menuAttuale = user.ristorante?.menu || [];
+
+    await coll.updateOne(
+      { email: email },
+      { 
+        $set: { 
+          ristorante: { 
+            ...user.ristorante,
+            ...ristorante, 
+            menu: menuAttuale 
+          } 
+        } 
+      }
+    );
+
+    res.status(200).json({ message: "Dati ristorante salvati correttamente!" });
+  } catch (error) {
+    console.error("Errore di salvataggio ristorante:", error);
+    res.status(500).json({ message: "Errore interno al server." });
+  } finally {
+    if (client) await client.close();
+  }
+});
+
 // Recupera i metodi di pagamento salvati per l'utente
 app.get("/api/metodi-pagamento", async (req, res) => {
   const { email } = req.query;
@@ -809,7 +848,6 @@ app.post("/api/metodi-pagamento/aggiungi", async (req, res) => {
     if (client) await client.close();
   }
 });
-
 
 
 app.listen(port, () => {
