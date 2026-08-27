@@ -38,6 +38,38 @@
         <span id="prezzoTotale" class="text-success">0.00 €</span>
       </div>
 
+      <!-- SEZIONE METODI DI PAGAMENTO -->
+      <div class="mb-4 border-top pt-3">
+        <h4 class="fw-bold mb-3">Metodo di Pagamento</h4>
+        
+        <div id="listaMetodiPagamento" class="mb-3">
+          <!-- Radio button dei metodi di pagamento generati dinamicamente -->
+        </div>
+
+        <!-- Form per aggiungere una nuova carta -->
+        <button class="btn btn-sm btn-outline-secondary mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#formNuovoMetodo">
+          + Aggiungi Nuovo Metodo
+        </button>
+
+        <div class="collapse card card-body mb-3" id="formNuovoMetodo">
+          <div class="mb-2">
+            <input type="text" id="nuovoIntestatario" class="form-control" placeholder="Nome Intestatario">
+          </div>
+          <div class="mb-2">
+            <input type="text" id="nuovoNumero" class="form-control" placeholder="Numero Carta (16 cifre)" maxlength="16">
+          </div>
+          <div class="row g-2 mb-2">
+            <div class="col-6">
+              <input type="text" id="nuovaScadenza" class="form-control" placeholder="MM/AA">
+            </div>
+            <div class="col-6">
+              <input type="text" id="nuovoCvv" class="form-control" placeholder="CVV" maxlength="3">
+            </div>
+          </div>
+          <button type="button" class="btn btn-primary btn-sm" onclick="salvaNuovoMetodo()">Salva Metodo</button>
+        </div>
+      </div>
+
       <div class="d-grid gap-2">
         <button class="btn btn-success btn-lg fw-semibold" id="confermaOrdineBtn" onclick="inviaOrdine()">
           Conferma ed Invia Ordine
@@ -54,9 +86,11 @@
 
   <script>
     let carrello = [];
+    let metodiPagamento = [];
 
     document.addEventListener("DOMContentLoaded", () => {
       caricaCarrello();
+      caricaMetodiPagamento();
     });
 
     async function caricaCarrello() {
@@ -119,6 +153,137 @@
       }
     }
 
+    async function caricaMetodiPagamento() {
+      const userEmail = localStorage.getItem("userEmail");
+      const containerMetodi = document.getElementById("listaMetodiPagamento");
+
+      try {
+        const res = await fetch(`http://localhost:3000/api/metodi-pagamento?email=${encodeURIComponent(userEmail)}`);
+        if (!res.ok) throw new Error("Errore durante il recupero dei metodi di pagamento.");
+
+        metodiPagamento = await res.json();
+        containerMetodi.innerHTML = "";
+
+        if (metodiPagamento.length === 0) {
+          containerMetodi.innerHTML = "<p class='text-muted small'>Nessun metodo di pagamento salvato.</p>";
+          return;
+        }
+
+        metodiPagamento.forEach((m, idx) => {
+          const div = document.createElement("div");
+          div.className = "form-check mb-2";
+          div.innerHTML = `
+            <input class="form-check-input" type="radio" name="metodoPagamento" id="metodo_${m._id}" value="${m._id}" ${idx === 0 ? "checked" : ""}>
+            <label class="form-check-label" for="metodo_${m._id}">
+              <strong>${m.tipo}</strong> - ${m.numeroMascherato} (${m.intestatario})
+            </label>
+          `;
+          containerMetodi.appendChild(div);
+        });
+      } catch (err) {
+        console.error("Errore caricamento metodi pagamento:", err);
+      }
+    }
+
+    async function salvaNuovoMetodo() {
+      const userEmail = localStorage.getItem("userEmail");
+      const intestatario = document.getElementById("nuovoIntestatario").value;
+      const numero = document.getElementById("nuovoNumero").value;
+      const scadenza = document.getElementById("nuovaScadenza").value;
+
+      if (!intestatario || !numero || !scadenza) {
+        alert("Compila tutti i campi della carta.");
+        return;
+      }
+
+      try {
+        const response = await fetch("http://localhost:3000/api/metodi-pagamento/aggiungi", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: userEmail,
+            metodo: {
+              tipo: "Carta di Credito",
+              intestatario: intestatario,
+              numero: numero,
+              scadenza: scadenza
+            }
+          })
+        });
+
+        if (response.ok) {
+          alert("Metodo di pagamento aggiunto con successo!");
+          document.getElementById("nuovoIntestatario").value = "";
+          document.getElementById("nuovoNumero").value = "";
+          document.getElementById("nuovaScadenza").value = "";
+          document.getElementById("nuovoCvv").value = "";
+          
+          caricaMetodiPagamento();
+        } else {
+          alert("Errore nel salvataggio del metodo di pagamento.");
+        }
+      } catch (error) {
+        console.error("Errore salvataggio metodo:", error);
+      }
+    }
+
+    async function inviaOrdine() {
+      const emailCliente = localStorage.getItem('userEmail');
+      const metodoSelezionato = document.querySelector('input[name="metodoPagamento"]:checked');
+
+      if (!emailCliente) {
+        alert("Devi aver effettuato il login per confermare l'ordine!");
+        window.location.href = 'index.html';
+        return;
+      }
+
+      if (!carrello || carrello.length === 0) {
+        alert("Il carrello è vuoto.");
+        return;
+      }
+
+      if (!metodoSelezionato) {
+        alert("Seleziona o aggiungi un metodo di pagamento prima di confermare l'ordine.");
+        return;
+      }
+
+      const nomeRistorante = carrello[0].ristorante || 'Non specificato';
+
+      let somma = 0;
+      carrello.forEach(item => {
+        somma += parseFloat(item.price) || 0;
+      });
+
+      try {
+        const response = await fetch("http://localhost:3000/api/ordini/crea", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            emailCliente: emailCliente,
+            ristorante: nomeRistorante,
+            piatti: carrello,
+            totale: somma,
+            metodoPagamentoId: metodoSelezionato.value
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || "Errore durante il salvataggio dell'ordine.");
+        }
+
+        alert("Ordine inviato con successo!");
+        window.location.href = 'elenco.html';
+
+      } catch (error) {
+        console.error("Errore nell'invio dell'ordine:", error);
+        alert("Impossibile inviare l'ordine: " + error.message);
+      }
+    }
+
     async function rimuoviPiatto(index) {
       const userEmail = localStorage.getItem("userEmail");
       
@@ -158,56 +323,6 @@
         }
       } catch (error) {
         console.error("Errore:", error);
-      }
-    }
-
-    async function inviaOrdine() {
-      const emailCliente = localStorage.getItem('userEmail');
-
-      if (!emailCliente) {
-        alert("Devi aver effettuato il login per confermare l'ordine!");
-        window.location.href = 'index.html';
-        return;
-      }
-
-      if (!carrello || carrello.length === 0) {
-        alert("Il carrello è vuoto.");
-        return;
-      }
-
-      const nomeRistorante = carrello[0].ristorante || 'Non specificato';
-
-      let somma = 0;
-      carrello.forEach(item => {
-        somma += parseFloat(item.price) || 0;
-      });
-
-      try {
-        const response = await fetch("http://localhost:3000/api/ordini/crea", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            emailCliente: emailCliente,
-            ristorante: nomeRistorante,
-            piatti: carrello,
-            totale: somma
-          })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.message || "Errore durante il salvataggio dell'ordine.");
-        }
-
-        alert("Ordine inviato con successo!");
-        window.location.href = 'elenco.html';
-
-      } catch (error) {
-        console.error("Errore nell'invio dell'ordine:", error);
-        alert("Impossibile inviare l'ordine: " + error.message);
       }
     }
   </script>
