@@ -51,6 +51,20 @@
                                         </tbody>
                                     </table>
                                 </div>
+
+                                <!-- SEZIONE MODALITÀ DI CONSEGNA -->
+                                <div class="mt-4 p-3 bg-light rounded border">
+                                    <h6 class="fw-bold mb-2" style="color: #ea580c;">Modalità di Consegna Offerta:</h6>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="modalitaConsegna" id="domicilio" value="domicilio" checked>
+                                        <label class="form-check-label" for="domicilio">Consegna a Domicilio</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="modalitaConsegna" id="ristorante" value="ristorante">
+                                        <label class="form-check-label" for="ristorante">Consegna / Ritiro al Ristorante</label>
+                                    </div>
+                                </div>
+
                                 <div class="d-flex justify-content-between align-items-center mt-4">
                                     <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 fw-bold" onclick="creaRigaPiatto()">
                                         + Aggiungi Piatto
@@ -70,15 +84,25 @@
             const tbody = document.getElementById("menu-body");
             const userEmail = localStorage.getItem("userEmail");
 
-            //carica il menu del ristoratore
+            // carica il menu del ristoratore e la modalità di consegna salvata
             async function caricaMenu() {
-
                 try {
-                    const response = await fetch(`http://localhost:3000/api/menu?email=${encodeURIComponent(userEmail)}`);
-                    if (!response.ok) throw new Error("Errore nel recupero del menù");
+                    const response = await fetch(`http://localhost:3000/api/utente?email=${encodeURIComponent(userEmail)}`);
+                    if (!response.ok) throw new Error("Errore nel recupero dei dati utente");
 
-                    const menuUtente = await response.json();
+                    const data = await response.json();
+                    const user = data.user;
                     tbody.innerHTML = "";
+
+                    // Imposta il valore del radio button salvato su DB
+                    if (user && user.ristorante && user.ristorante.modalitaConsegna) {
+                        const radioSaved = document.querySelector(`input[name="modalitaConsegna"][value="${user.ristorante.modalitaConsegna}"]`);
+                        if (radioSaved) {
+                            radioSaved.checked = true;
+                        }
+                    }
+
+                    const menuUtente = (user && user.ristorante && user.ristorante.menu) ? user.ristorante.menu : [];
 
                     if (!menuUtente || menuUtente.length === 0) {
                         tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">Il tuo menù è vuoto. Clicca su "+ Aggiungi Piatto" per iniziare.</td></tr>`;
@@ -93,7 +117,8 @@
                     tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">Errore durante il caricamento del menù.</td></tr>`;
                 }
             }
-            //funzione che genera il codice html per l'aggiunta di un ingrediente
+
+            // funzione che genera il codice html per l'aggiunta di un ingrediente
             function generaHTMLIngredienti(ingredients = []) {
                 let html = '<div class="d-flex flex-wrap gap-2 mb-2 container-checkbox">';
                 
@@ -118,36 +143,30 @@
                 return html;
             }
 
-            //funzione che quando viene schiacciato il + aggiunge l'ingrediente
+            // funzione che quando viene schiacciato il + aggiunge l'ingrediente
             function aggiungiIngredienteAPiatto(btn) {
-                //seleziona il quadratino posto prima dell'ingrediente
                 const input = btn.previousElementSibling;
-                //estrae il testo dell'ingrediente
                 const nomeIngrediente = input.value.trim();
+                if (!nomeIngrediente) return;
 
-
-                // Trova la cella <td> padre e seleziona il contenitore delle checkbox degli ingredienti
                 const container = btn.closest('td').querySelector('.container-checkbox');
                 const nuovoElemento = document.createElement('div');
-                //definisce la struttura html del nuovo ingrediente aggiunto
                 nuovoElemento.className = 'form-check bg-white px-2 py-1 rounded border shadow-sm d-flex align-items-center';
                 nuovoElemento.innerHTML = `
                     <input class="form-check-input ingredient-checkbox me-1" type="checkbox" value="${nomeIngrediente}" checked>
                     <label class="form-check-label small me-1">${nomeIngrediente}</label>
                     <button type="button" class="btn-close ms-1" style="font-size: 0.55rem;" onclick="this.closest('.form-check').remove()"></button>
                 `;
-                //aggiunta ingrediente al contenitore padre
                 container.appendChild(nuovoElemento);
                 input.value = '';
             }
 
-            //aggiunge un nuovo piatto al menu
+            // aggiunge un nuovo piatto al menu
             function creaRigaPiatto(piatto = {}) {
                 const tr = document.createElement("tr");
                     
-                // prende l'id del piatto
                 const mealId = piatto.mealId;
-                tr.dataset.id = mealId; // Assegna SEMPRE l'ID alla riga DOM
+                tr.dataset.id = mealId;
 
                 const strMealThumb = piatto.strMealThumb || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c';
                 const strCategory = piatto.strCategory || 'antipasto';
@@ -155,7 +174,6 @@
                 const ingredients = piatto.ingredients || [];
                 const price = piatto.price || '0.00';
 
-                //crea la riga che conterrà tutti i dati del nuovo piatto
                 tr.innerHTML = `
                     <td class="text-center">
                         <img src="${strMealThumb}" class="img-preview rounded mb-1 d-block mx-auto" style="width:60px; height:60px; object-fit:cover;" alt="Foto">
@@ -188,11 +206,10 @@
 
                 tbody.appendChild(tr);
             }
-            //funzione che rimuove la riga della tabella per cancellare il piatto
+
+            // funzione che rimuove la riga della tabella per cancellare il piatto
             async function rimuoviRiga(btn) {
-                //anche in questo caso cerca l'elemento tr più vicino al pulsante cliccato
                 const tr = btn.closest("tr");
-                //estrae l'id del piatto salvato nell'attributo data-id
                 const id = tr.dataset.id;
 
                 if (id) {
@@ -210,39 +227,39 @@
                 tr.remove();
             }
 
-            //salva i dati modificati e ti reindirizza alla pagina dei piatti
+            // salva i dati modificati (menu e modalità consegna)
             async function salvaModifiche(e) {
                 e.preventDefault();
                 const righe = tbody.querySelectorAll("tr");
                 const listaPiatti = [];
 
-                // Nel frontend, dentro salvaModifiche(e)
-                
-               righe.forEach(riga => {
-                const id = riga.dataset.id; // Usa l'ID già assegnato al tr
-                const category = riga.querySelector(".select-tipologia").value;
-                const meal = riga.querySelector(".input-nome").value;
-                const priceVal = parseFloat(riga.querySelector(".input-prezzo").value);
-                const thumb = riga.querySelector(".img-preview").src;
+                righe.forEach(riga => {
+                    const id = riga.dataset.id;
+                    const category = riga.querySelector(".select-tipologia").value;
+                    const meal = riga.querySelector(".input-nome").value;
+                    const priceVal = parseFloat(riga.querySelector(".input-prezzo").value);
+                    const thumb = riga.querySelector(".img-preview").src;
 
-                const ingredientiSelezionati = [];
-                const checkboxes = riga.querySelectorAll(".ingredient-checkbox:checked");
+                    const ingredientiSelezionati = [];
+                    const checkboxes = riga.querySelectorAll(".ingredient-checkbox:checked");
 
-                //scorre le checkbox spuntate e inserisce gli ingredienti spuntati
-                for (let i = 0; i<checkboxes.length; i++) {
-                    const cb = checkboxes[i];
-                    ingredientiSelezionati.push(cb.value);
-                }
+                    for (let i = 0; i < checkboxes.length; i++) {
+                        ingredientiSelezionati.push(checkboxes[i].value);
+                    }
 
-                listaPiatti.push({
-                    mealId: id,
-                    strMeal: meal,
-                    strCategory: category,
-                    price: priceVal,
-                    strMealThumb: thumb,
-                    ingredients: ingredientiSelezionati
+                    listaPiatti.push({
+                        mealId: id,
+                        strMeal: meal,
+                        strCategory: category,
+                        price: priceVal,
+                        strMealThumb: thumb,
+                        ingredients: ingredientiSelezionati
+                    });
                 });
-            });
+
+                // Legge il valore del radio button selezionato
+                const modalitaConsegna = document.querySelector('input[name="modalitaConsegna"]:checked').value;
+
                 try {
                     const response = await fetch(`http://localhost:3000/api/menu`, {
                         method: "PUT",
@@ -251,7 +268,8 @@
                         },
                         body: JSON.stringify({
                             email: userEmail,
-                            menu: listaPiatti
+                            menu: listaPiatti,
+                            modalitaConsegna: modalitaConsegna
                         })
                     });
 
