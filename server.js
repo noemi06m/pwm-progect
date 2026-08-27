@@ -306,29 +306,6 @@ app.get("/api/menu", async (req, res) => {
   }
 });
 
-// PUT MENU RISTORATORE
-app.put("/api/menu", async (req, res) => {
-  const { email, menu } = req.body;
-  if (!email) {
-    return res.status(400).json({ message: "Email obbligatoria." });
-  }
-  let client;
-  try {
-    client = await MongoClient.connect(mongoURL);
-    const coll = client.db("fastfood").collection("users");
-    await coll.updateOne(
-      { email: email },
-      { $set: { "ristorante.menu": menu } }
-    );
-    res.status(200).json({ message: "Menù aggiornato con successo!", menu: menu });
-  } catch (error) {
-    console.error("Errore durante l'aggiornamento del menù:", error);
-    res.status(500).json({ message: "Errore interno al server." });
-  } finally {
-    if (client) await client.close();
-  }
-});
-
 // DELETE PIATTO DAL MENU
 app.delete("/api/menu/:mealId", async (req, res) => {
   const { mealId } = req.params;
@@ -410,6 +387,7 @@ app.get("/api/ristorante/:id", async (req, res) => {
   }
 });
 
+// SEARCH MEALS
 app.get("/api/meals/search", async (req, res) => {
   const { q } = req.query;
   let client;
@@ -494,6 +472,33 @@ app.get("/api/ristoranti/search", async (req, res) => {
     res.status(200).json(ristorantiFiltrati);
   } catch (error) {
     console.error("Errore durante la ricerca ristoranti:", error);
+    res.status(500).json({ message: "Errore interno al server." });
+  } finally {
+    if (client) await client.close();
+  }
+});
+
+// SEARCH RISTORANTI
+app.get("/api/ristoranti/search", async (req, res) => {
+  const { q } = req.query;
+  if (!q || !q.trim()) {
+    return res.status(200).json([]);
+  }
+  const queryPulita = q.trim();
+  let client;
+  try {
+    client = await MongoClient.connect(mongoURL);
+    const coll = client.db("fastfood").collection("users");
+    const ristorantiFiltrati = await coll.find({
+      role: "ristoratore",
+      $or: [
+        { "ristorante.nome": { $regex: queryPulita, $options: "i" } },
+        { "ristorante.indirizzo": { $regex: queryPulita, $options: "i" } }
+      ]
+    }).toArray();
+    res.status(200).json(ristorantiFiltrati);
+  } catch (error) {
+    console.error("Errore durante la ricerca dei ristoranti:", error);
     res.status(500).json({ message: "Errore interno al server." });
   } finally {
     if (client) await client.close();
@@ -820,6 +825,62 @@ app.post("/api/ristorante/dettagli", async (req, res) => {
   }
 });
 
+// PUT MENU RISTORATORE
+app.put("/api/menu", async (req, res) => {
+  const { email, menu, modalitaConsegna } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ 
+      message: "Email obbligatoria." 
+    });
+  }
+
+  let client;
+
+  try {
+    client = await MongoClient.connect(mongoURL);
+
+    const coll = client
+      .db("fastfood")
+      .collection("users");
+
+    const result = await coll.updateOne(
+      { email: email },
+      {
+        $set: {
+          "ristorante.menu": menu,
+          "ristorante.modalitaConsegna": modalitaConsegna
+        }
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        message: "Utente non trovato."
+      });
+    }
+
+    res.status(200).json({
+      message: "Menù e modalità di consegna aggiornati con successo!",
+      menu: menu,
+      modalitaConsegna: modalitaConsegna
+    });
+
+  } catch (error) {
+    console.error(
+      "Errore durante l'aggiornamento del menù:",
+      error
+    );
+
+    res.status(500).json({
+      message: "Errore interno al server."
+    });
+
+  } finally {
+    if (client) await client.close();
+  }
+});
+
 // Recupera i metodi di pagamento salvati per l'utente
 app.get("/api/metodi-pagamento", async (req, res) => {
   const { email } = req.query;
@@ -884,8 +945,6 @@ app.post("/api/metodi-pagamento/aggiungi", async (req, res) => {
     if (client) await client.close();
   }
 });
-
-
 
 
 app.listen(port, () => {
