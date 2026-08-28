@@ -84,19 +84,17 @@
             const tbody = document.getElementById("menu-body");
             const userEmail = localStorage.getItem("userEmail");
 
-            // carica il menu e i dettagli del ristoratore
+            // carica il menu del ristoratore e la modalità di consegna salvata
             async function caricaMenu() {
                 try {
-                    // Recupera sia i dati del ristorante che il menu
                     const response = await fetch(`http://localhost:3000/api/utente?email=${encodeURIComponent(userEmail)}`);
-                    if (!response.ok) throw new Error("Errore nel recupero dell'utente");
+                    if (!response.ok) throw new Error("Errore nel recupero dei dati utente");
 
                     const data = await response.json();
                     const user = data.user;
-                    
                     tbody.innerHTML = "";
 
-                    // Se presente, seleziona il radio button salvato precedentemente
+                    // Imposta il valore del radio button salvato su DB
                     if (user && user.ristorante && user.ristorante.modalitaConsegna) {
                         const radioSaved = document.querySelector(`input[name="modalitaConsegna"][value="${user.ristorante.modalitaConsegna}"]`);
                         if (radioSaved) {
@@ -167,8 +165,8 @@
             function creaRigaPiatto(piatto = {}) {
                 const tr = document.createElement("tr");
                     
-                const mealId = piatto.mealId;
-                tr.dataset.id = mealId; 
+                const mealId = piatto.mealId || "";
+                tr.dataset.id = mealId;
 
                 const strMealThumb = piatto.strMealThumb || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c';
                 const strCategory = piatto.strCategory || 'antipasto';
@@ -209,12 +207,13 @@
                 tbody.appendChild(tr);
             }
 
-            // rimuove la riga della tabella per cancellare il piatto
+            // funzione che rimuove la riga della tabella per cancellare il piatto
             async function rimuoviRiga(btn) {
                 const tr = btn.closest("tr");
                 const id = tr.dataset.id;
 
-                if (id) {
+                // Se il piatto ha un ID ed è già salvato su DB, chiama il backend
+                if (id && id !== "undefined") {
                     if (!confirm("Sei sicuro di voler eliminare questo piatto?")) return;
                     try {
                         const res = await fetch(`http://localhost:3000/api/menu/${id}?email=${encodeURIComponent(userEmail)}`, { 
@@ -226,9 +225,10 @@
                         return;
                     }
                 }
+
+                // Rimuove la riga dal DOM (sia che fosse nuova o eliminata dal DB)
                 tr.remove();
             }
-
             // salva i dati modificati (menu e modalità consegna)
             async function salvaModifiche(e) {
                 e.preventDefault();
@@ -259,8 +259,8 @@
                     });
                 });
 
-                // Recupera il valore della modalità consegna selezionata
-                const modalitaConsegnaSelezionata = document.querySelector('input[name="modalitaConsegna"]:checked').value;
+                // Legge il valore del radio button selezionato
+                const modalitaConsegna = document.querySelector('input[name="modalitaConsegna"]:checked').value;
 
                 try {
                     const response = await fetch(`http://localhost:3000/api/menu`, {
@@ -271,13 +271,13 @@
                         body: JSON.stringify({
                             email: userEmail,
                             menu: listaPiatti,
-                            modalitaConsegna: modalitaConsegnaSelezionata
+                            modalitaConsegna: modalitaConsegna
                         })
                     });
 
                     if (!response.ok) throw new Error("Errore durante il salvataggio");
 
-                    alert("Menù e opzioni aggiornati con successo!");
+                    alert("Menù aggiornato con successo!");
                     caricaMenu();
                     window.location.href = "piatti.html";
                 } catch (error) {
