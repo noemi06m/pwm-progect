@@ -96,7 +96,7 @@
 
       function logout() {
         localStorage.clear();
-        window.location.href = 'index.html';
+        window.location.href = 'iniziale.html';
       }
 
       document.getElementById('btndinamico').addEventListener('click', gestioneAccesso);
@@ -105,7 +105,7 @@
         const email = localStorage.getItem('userEmail');
 
         if (!email) {
-          window.location.href = 'index.html';
+          window.location.href = 'iniziale.html';
           return;
         }
 
