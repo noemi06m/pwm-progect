@@ -377,6 +377,7 @@ app.get("/api/ristorante/:id", async (req, res) => {
       indirizzo: user.ristorante.indirizzo || "-",
       telefono: user.ristorante.telefono || "-",
       partitaIva: user.ristorante.partitaIva || "-",
+      modalitaConsegna: user.ristorante.modalitaConsegna || "Non specificata", // Campo aggiunto
       menu: user.ristorante.menu || []
     });
   } catch (error) {
