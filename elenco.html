@@ -139,6 +139,8 @@
           const indirizzo = r.indirizzo || 'Indirizzo non specificato';
           const telefono = r.telefono || '-';
           const piva = r.partitaIva || '-';
+          // Estrazione e gestione default del tipo di consegna
+          const consegna = r.modalitaConsegna || 'Non specificata';
 
           const cardHTML = `
             <div class="col-12 col-md-6 col-lg-4">
@@ -153,8 +155,11 @@
                   <p class="card-text text-muted small mb-1">
                     <strong>Telefono:</strong> ${telefono}
                   </p>
-                  <p class="card-text text-muted small mb-3 flex-grow-1">
+                  <p class="card-text text-muted small mb-1">
                     <strong>P. IVA:</strong> ${piva}
+                  </p>
+                  <p class="card-text text-muted small mb-3 flex-grow-1">
+                    <strong>Consegna:</strong> ${consegna}
                   </p>
                   <div class="pt-3 border-top text-end">
                     <a href="menuCliente.html?id=${u._id}" class="btn btn-outline-orange btn-sm rounded-3 fw-semibold px-3">Vedi Menù</a>
