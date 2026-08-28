@@ -3,12 +3,39 @@ dns.setServers(["1.1.1.1", "1.0.0.1"]);
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const swaggerUi = require("swagger-ui-express");
+const swaggerJsdoc = require("swagger-jsdoc");
 const { MongoClient, ObjectId } = require("mongodb");
 
 const mongoURL = "mongodb+srv://noemimazzali06_db_user:gyhKKjjmYhE0A4c3@cluster0.fchb56k.mongodb.net/"; 
 
 const app = express();
 const port = 3000;
+// Configurazione di Swagger JSDoc
+const swaggerOptions = {
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "FastFood API Documentation",
+      version: "1.0.0",
+      description: "Documentazione API per il sistema FastFood (Utenti, Ristoranti, Ordini)",
+    },
+    servers: [
+      {
+        url: `http://localhost:${port}`,
+        description: "Server Locale",
+      },
+    ],
+  },
+  // Percorso ai file dove inserire le annotazioni JSDoc (in questo caso il file stesso o tutte le rotte)
+  apis: ["./*.js"], 
+};
+
+const swaggerDocs = swaggerJsdoc(swaggerOptions);
+
+// Endpoint della Dashboard Swagger UI
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+
 
 app.use(express.json());
 app.use(cors());
